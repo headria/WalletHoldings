@@ -2,48 +2,61 @@
 interface RetweetCheckResult {
     hasRetweeted: boolean;
     error?: string;
+    tweets?: any[];
 }
 
 /**
  * Check if a user has retweeted a specific tweet
- * @param username Twitter username to check
+ * @param userId Twitter user ID to check (must be numeric)
  * @param tweetId ID of the tweet to check for retweet
  * @returns Promise<RetweetCheckResult>
  */
 export async function hasUserRetweeted(
-    username: string,
+    userId: string,
     tweetId: string
 ): Promise<RetweetCheckResult> {
     try {
+        // Validate that userId is numeric
+        if (!/^\d+$/.test(userId)) {
+            throw new Error('User ID must be numeric. Please provide a Twitter user ID, not username.');
+        }
+
         const response = await fetch(
-            `https://api.twitter.com/graphql/P6tZxAp8N4t5TzqtI5-0Gw/TweetDetail?variables={"focalTweetId":"${tweetId}","with_rts":true,"includePromotedContent":true,"withCommunity":true,"withQuickPromoteEligibilityTweetFields":true,"withBirdwatchNotes":true,"withVoice":true,"withV2Timeline":true}`,
+            `https://twitter-api71.p.rapidapi.com/UserRepliesAndTweets?user=${userId}`,
             {
+                method: 'GET',
                 headers: {
-                    'Authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
-                    'x-guest-token': await getGuestToken(),
-                    'User-Agent': 'Mozilla/5.0',
-                    'Accept': '*/*'
+                    'x-rapidapi-host': 'twitter-api71.p.rapidapi.com',
+                    'x-rapidapi-key': '593912ee04mshb1686f3619244c9p1f49f7jsn5d13481b3c24'
                 }
             }
         );
 
+        if (!response.ok) {
+            throw new Error(`API response error: ${response.status} - ${await response.text()}`);
+        }
+
         const data = await response.json();
+        console.log('API Response:', JSON.stringify(data, null, 2));
 
-        // Check if the specified user is in the retweeters
-        const retweeters = data?.data?.threaded_conversation_with_injections?.instructions?.[0]?.entries
-            ?.find((entry: any) => entry?.content?.itemContent?.tweet_results?.result?.legacy?.retweeted_status_result?.result?.rest_id === tweetId);
-
-        const hasRetweeted = Boolean(retweeters);
+        // Check user's tweets and replies for the retweet
+        const tweets = data.tweets || [];
+        const hasRetweeted = tweets.some((tweet: any) => 
+            tweet.retweeted_status?.id_str === tweetId || 
+            tweet.quoted_status?.id_str === tweetId
+        );
 
         return {
             hasRetweeted,
-            error: hasRetweeted ? undefined : 'No retweet found'
+            tweets,
+            error: hasRetweeted ? undefined : 'User has not retweeted this tweet'
         };
 
     } catch (error) {
         console.error('Error checking retweet:', error);
         return {
             hasRetweeted: false,
+            tweets: [],
             error: error instanceof Error ? error.message : 'Unknown error occurred'
         };
     }
