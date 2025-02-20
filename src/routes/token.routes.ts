@@ -60,7 +60,7 @@ const router = Router();
 
 /**
  * @swagger
- * /tokens/all:
+ * /api/tokens/all:
  *   get:
  *     summary: Get all tokens information across multiple chains
  *     tags: [Tokens]
