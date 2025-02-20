@@ -13,6 +13,10 @@ const options = {
         url: 'http://localhost:3000',
         description: 'Development server',
       },
+      {
+        url: 'https://seal-app-4kzyz.ondigitalocean.app',
+        description: 'Production server',
+      },
     ],
   },
   apis: ['./src/routes/*.ts'], // Path to the API routes
