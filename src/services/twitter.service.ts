@@ -26,8 +26,8 @@ export async function hasUserRetweeted(
             {
                 method: 'GET',
                 headers: {
-                    'x-rapidapi-host': 'twitter-api71.p.rapidapi.com',
-                    'x-rapidapi-key': '593912ee04mshb1686f3619244c9p1f49f7jsn5d13481b3c24'
+                    'x-rapidapi-host': process.env.TWITTER_RAPIDAPI_HOST || '',
+                    'x-rapidapi-key': process.env.TWITTER_RAPIDAPI_KEY || ''
                 }
             }
         );
