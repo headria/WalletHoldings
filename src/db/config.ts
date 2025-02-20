@@ -17,7 +17,7 @@ var mongoConnectionUri: any = {
     port: process.env.MONGO_CONNECTION_URI_PORT || "27017",
     username: process.env.MONGO_CONNECTION_URI_USERNAME || "",
     password: process.env.MONGO_CONNECTION_URI_PASSWORD || "",
-    database: "wallet-holders",
+    database: process.env.MONGO_DATABASE_NAME || "wallet-holders",
     shard: false,
 };
 
