@@ -1,29 +1,41 @@
 export const WALLET_ADDRESSES = {
-    ethereum: "0x2af5d2ad76741191d15dfe7bf6ac92d4bd912ca3",
-    base: "0x122fDD9fEcbc82F7d4237C0549a5057E31c8EF8D",
-    solana: "9JcJD8un5QMaDkwuEMzH56gtr3pkvqc3ftWPqwHHU9vR"
+    ethereum: "0x219831c74199435faB1EF76F0Ed991CeEcbD4110",
+    base: "0xb375dd58Cc6E98C7b900eAC2566040dC7F41012a",
+    solana: "FvyKbbNQuD6iH1ZM23gFX3D18DoHxR9CMUonNcY8v5ur"
 };
 
 // Common ERC20 tokens to check
 export const COMMON_TOKENS = [
     "0xdac17f958d2ee523a2206206994597c13d831ec7", // USDT
     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", // USDC
-    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599", // WBTC
-    "0x514910771af9ca656af840dff83e8264ecf986ca", // LINK
-    "0x623cD3a3EdF080057892aaF8D773Bbb7A5C9b6e9", // UNI
-    "0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0", // MATIC
-    "0xc6bdb96e29c38dc43f014eed44de4106a6a8eb5f", // SHIB
-    "0x6b175474e89094c44da98b954eedeac495271d0f", // DAI
-    "0x75231f58b43240c9718dd58b4967c5114342a86c", // OKB
-    "0x2af5d2ad76741191d15dfe7bf6ac92d4bd912ca3", // BUSD
-    "0xc8807f0f5ba3fa45ffbdc66928d71c5289249014", // stETH
-    "0x582d872a1b094fc48f5de31d3b73f2d9be47def1", // TON
-    "0x5a98fcbea516cf06857215779fd812ca3bef1b32", // LDO
-    "0x3845badade8e6dff049820680d1f14bd3903a5d0", // SAND
-    "0x4d224452801aced8b2f0aebe155379bb5d594381", // APE
-    "0x15d4c048f83bd7e37d49ea4c83a07267ec4203da", // GALA
     "0x0f5d2fb29fb7d3cfee444a200298f468908cc942", // MANA
     "0x4e15361fd6b4bb609fa63c81a2be19d873717870", // FTM
     "0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85", // AXS
-    "0x925206b8a707096ed26ae47c84747fe0bb734f59"  // HOT
-]; 
+    "0x3c3a81e81dc49A522A592e7622A7E711c06bf354"  // MNT
+];
+
+interface Config {
+    ethereum: string;
+    base: string;
+    solana: string;
+    twitter: {
+        apiKey: string;
+        apiSecret: string;
+        accessToken: string;
+        accessTokenSecret: string;
+    };
+}
+
+const config: Config = {
+    ethereum: "0x219831c74199435faB1EF76F0Ed991CeEcbD4110",
+    base: "0xb375dd58Cc6E98C7b900eAC2566040dC7F41012a",
+    solana: "FvyKbbNQuD6iH1ZM23gFX3D18DoHxR9CMUonNcY8v5ur",
+    twitter: {
+        apiKey: process.env.TWITTER_API_KEY || '',
+        apiSecret: process.env.TWITTER_API_SECRET || '',
+        accessToken: process.env.TWITTER_ACCESS_TOKEN || '',
+        accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET || '',
+    }
+};
+
+export default config; 

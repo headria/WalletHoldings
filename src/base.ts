@@ -58,24 +58,20 @@ async function getWorkingBaseProvider(): Promise<ethers.Provider> {
 
 // Common Base tokens
 const COMMON_BASE_TOKENS = [
-    "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb", // DAI
-    "0x623cD3a3EdF080057892aaF8D773Bbb7A5C9b6e9", // WETH
-    "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22", // cbETH
-    "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA", // USDbC
-    "0x78a087d713Be963Bf307b18F2Ff8122EF9A63ae9", // BALD
-    "0x27D2DECb4bFC9C76F0309b8E88dec3a601Fe25a8", // UNIDEX
-    "0x9e1028F5F1D5eDE59748FFceE5532509976840E0", // COMP
-    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC
-    "0xE3B53AF74a4BF62Ae5511055290838050bf764Df", // MIM
-    "0x940181a94A35A4569E4529A3CDfB74e38FD98631"  // AERO
+    '0x4f9fd6be4a90f2620860d680c0d4d5fb53d1a825',
+    '0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b',
+    '0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf',
+    '0xb33ff54b9f7242ef1593d2c9bcd8f9df46c77935',
+    '0x0c03ce270b4826ec62e7dd007f0b716068639f7b',
+    '0x55cd6469f597452b5a7536e2cd98fde4c1247ee4'
 ];
 
-export async function getAllBaseTokens(walletAddress: string): Promise<void> {
+export async function getAllBaseTokens(walletAddress: string): Promise<TokenInfo[]> {
     try {
         const provider = await getWorkingBaseProvider();
-        
+
         console.log(`\nChecking ${COMMON_BASE_TOKENS.length} common tokens for wallet ${walletAddress}...`);
-        
+
         let totalPortfolioValue = 0;
         const tokens: TokenInfo[] = [];
 
@@ -88,7 +84,7 @@ export async function getAllBaseTokens(walletAddress: string): Promise<void> {
                 );
 
                 console.log(`Checking token at address: ${contractAddress}`);
-                
+
                 try {
                     const [balance, decimals, symbol] = await Promise.all([
                         contract.balanceOf(walletAddress),
@@ -102,7 +98,7 @@ export async function getAllBaseTokens(walletAddress: string): Promise<void> {
                         const divisor = BigInt(10 ** Number(decimals));
                         const beforeDecimal = balanceBigInt / divisor;
                         const afterDecimal = balanceBigInt % divisor;
-                        
+
                         formattedBalance = Number(beforeDecimal.toString() + "." + afterDecimal.toString().padStart(Number(decimals), '0'));
                     } catch (conversionError) {
                         console.error(`Error converting balance for ${symbol}:`, conversionError);
@@ -140,7 +136,7 @@ export async function getAllBaseTokens(walletAddress: string): Promise<void> {
         // Get Base ETH balance
         const ethBalance = await provider.getBalance(walletAddress);
         const formattedEthBalance = Number(ethers.formatEther(ethBalance));
-        
+
         if (formattedEthBalance > 0) {
             console.log(`Found: ETH (Native) - Balance: ${formattedEthBalance}`);
             tokens.push({
@@ -163,7 +159,9 @@ export async function getAllBaseTokens(walletAddress: string): Promise<void> {
         console.log(`Total Unique Tokens Found: ${tokens.length}`);
         console.log(`Total Portfolio Value: $${totalPortfolioValue.toFixed(2)}`);
 
+        return tokens;
     } catch (error) {
         console.error("Error:", error);
+        return [];
     }
 } 
