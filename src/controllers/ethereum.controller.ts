@@ -40,7 +40,9 @@ const ETH_TOKENS_TO_CHECK = [
     "0x292fcdd1b104de5a00250febba9bc6a5092a0076",
     "0x44971abf0251958492fee97da3e5c5ada88b9185",
     "0x8FAc8031e079F409135766C7d5De29cf22EF897C",
-    "0x7da2641000cbb407c329310c461b2cb9c70c3046"
+    '0xadf7c35560035944e805d98ff17d58cde2449389',
+    "0x7da2641000cbb407c329310c461b2cb9c70c3046",
+    '0xEbcD1Cc56Db8ce89B4A83C037103c870998034C7',
 ];
 
 async function getTokenPrice(tokenAddress: string): Promise<number | null> {

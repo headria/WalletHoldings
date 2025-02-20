@@ -15,7 +15,10 @@ const TOKENS_TO_CHECK = [
     'KENJSUYLASHUMfHyy5o4Hp2FdNqZg1AsUPhfH2kYvEP',
     '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump',
     'Hax9LTgsQkze1YFychnBLtFH8gYbQKtKfWKKg2SP6gdD',
-    '74SBV4zDXxTRgv1pEMoECskKBkZHc2yGPnc7GYVepump'
+    '74SBV4zDXxTRgv1pEMoECskKBkZHc2yGPnc7GYVepump',
+    'Goatm5cqggssKRUwbMnPhHXKtN5SDGEP57qjwTSHD1Xf',
+    'AKzAhPPLMH5NG35kGbgkwtrTLeGyVrfCtApjnvqAATcm',
+    '63LfDmNb3MQ8mw9MtZ2To9bEA2M71kZUUGq5tiJxcqj9'
 ];
 
 // Add interface for token type
@@ -45,11 +48,11 @@ async function getTokenPriceWithCache(mintAddress: string): Promise<number | nul
         // Check Redis cache first
         const cacheKey = `token:price:solana:${mintAddress}`;
         const cachedPrice = await redisService.get(cacheKey);
-        
+
         if (cachedPrice) {
             return Number(cachedPrice);
         }
-        
+
         // If not in cache, fetch from API
         const response = await axios.get<DexScreenerResponse>(
             `https://api.dexscreener.com/latest/dex/search/?q=${mintAddress}`
@@ -57,7 +60,7 @@ async function getTokenPriceWithCache(mintAddress: string): Promise<number | nul
 
         if (response.data.pairs && response.data.pairs.length > 0) {
             // Find the pair that matches our token address
-            const pair = response.data.pairs.find(p => 
+            const pair = response.data.pairs.find(p =>
                 p.baseToken.address.toLowerCase() === mintAddress.toLowerCase()
             );
 
@@ -71,7 +74,7 @@ async function getTokenPriceWithCache(mintAddress: string): Promise<number | nul
                 }
             }
         }
-        
+
         console.log(`No valid price found for token ${mintAddress}`);
         return null;
     } catch (error) {

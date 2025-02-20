@@ -90,7 +90,8 @@ const COMMON_BASE_TOKENS = [
     '0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf',
     '0xb33ff54b9f7242ef1593d2c9bcd8f9df46c77935',
     '0x0c03ce270b4826ec62e7dd007f0b716068639f7b',
-    '0x55cd6469f597452b5a7536e2cd98fde4c1247ee4'
+    '0x55cd6469f597452b5a7536e2cd98fde4c1247ee4',
+    '0xd418dfe7670c21f682e041f34250c114db5d7789'
 ];
 
 export async function getAllBaseTokens(walletAddress: string): Promise<TokenInfo[]> {

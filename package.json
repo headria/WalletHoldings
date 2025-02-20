@@ -6,6 +6,8 @@
   "dependencies": {
     "@solana/spl-token": "^0.4.12",
     "@solana/web3.js": "^1.98.0",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.6",
     "axios": "^1.7.9",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
@@ -14,10 +16,10 @@
     "fs": "^0.0.1-security",
     "mongoose": "^7.6.3",
     "redis": "^4.7.0",
-    "@types/swagger-jsdoc": "^6.0.4",
-    "@types/swagger-ui-express": "^4.1.6",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.0"
+    "swagger-ui-express": "^5.0.0",
+    "web3": "^4.16.0",
+    "web3-utils": "^4.3.3"
   },
   "scripts": {
     "start": "ts-node src/server.ts",
