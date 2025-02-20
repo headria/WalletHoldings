@@ -57,7 +57,7 @@ async function getTokenPrice(tokenAddress: string): Promise<number | null> {
 
         if (response.data.pairs && response.data.pairs.length > 0) {
             // Find the pair where our token is the base token
-            const pair = response.data.pairs.find(p => 
+            const pair = response.data.pairs.find(p =>
                 p.baseToken.address.toLowerCase() === tokenAddress.toLowerCase()
             );
 
@@ -71,7 +71,7 @@ async function getTokenPrice(tokenAddress: string): Promise<number | null> {
                 }
             }
         }
-        
+
         console.log(`No valid price found for token ${tokenAddress}`);
         return null;
     } catch (error) {
@@ -191,7 +191,7 @@ export const getStoredEthereumTokens = async (req: Request, res: Response) => {
 
         const storedData = await Token.findOne({
             wallet: walletAddress,
-            network: 'ethereum'
+            chain: 'ethereum'
         });
 
         if (!storedData) {
