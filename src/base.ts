@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import axios from 'axios';
+import { redisService } from './services/redis.service';
 
 // Standard ERC20 ABI for balanceOf function
 const ERC20_ABI = [
@@ -20,11 +21,37 @@ export interface TokenInfo {
 // Update price API for Base tokens
 async function getTokenPrice(contractAddress: string): Promise<number | null> {
     try {
-        // Use Base-specific price API or alternative for Base network
+        const cachedPrice = await redisService.get(`base:price:${contractAddress}`);
+
+        if (cachedPrice) {
+            return parseFloat(cachedPrice);
+        }
+
+        // Try CoinGecko first
+        try {
+            const response = await axios.get(
+                `https://api.coingecko.com/api/v3/simple/token_price/base?contract_addresses=${contractAddress}&vs_currencies=usd`
+            );
+            if (response.data[contractAddress.toLowerCase()]?.usd) {
+                const price = response.data[contractAddress.toLowerCase()].usd;
+                await redisService.set(`base:price:${contractAddress}`, price.toString(), 300);
+                return price;
+            }
+        } catch (error) {
+            console.log('CoinGecko fallback failed, trying DEXScreener...');
+        }
+
+        // Fallback to DEXScreener
         const response = await axios.get(
             `https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`
         );
-        return response.data?.pairs?.[0]?.priceUsd || null;
+        const price = response.data?.pairs?.[0]?.priceUsd || null;
+
+        if (price) {
+            await redisService.set(`base:price:${contractAddress}`, price.toString(), 300);
+        }
+
+        return price;
     } catch (error) {
         console.error(`Error fetching price for ${contractAddress}:`, error);
         return null;
@@ -133,18 +160,27 @@ export async function getAllBaseTokens(walletAddress: string): Promise<TokenInfo
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        // Get Base ETH balance
+        // Get Base ETH balance and price
         const ethBalance = await provider.getBalance(walletAddress);
         const formattedEthBalance = Number(ethers.formatEther(ethBalance));
 
         if (formattedEthBalance > 0) {
             console.log(`Found: ETH (Native) - Balance: ${formattedEthBalance}`);
-            tokens.push({
+            const ethPrice = await getTokenPrice('ETH');
+            const tokenInfo: TokenInfo = {
                 contractAddress: 'ETH',
                 symbol: 'ETH',
                 balance: formattedEthBalance,
                 decimals: 18
-            });
+            };
+
+            if (ethPrice !== null) {
+                tokenInfo.price = ethPrice;
+                tokenInfo.usdValue = formattedEthBalance * ethPrice;
+                totalPortfolioValue += tokenInfo.usdValue;
+            }
+
+            tokens.push(tokenInfo);
         }
 
         // Display results

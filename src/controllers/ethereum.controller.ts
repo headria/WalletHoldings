@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getAllEthereumTokens as getEthTokens } from '../ethereum';
 import { Token } from '../db/models/token';
 import axios from 'axios';
+import { redisService } from '../services/redis.service';
 
 interface EthToken {
     address: string;
@@ -44,6 +45,12 @@ const ETH_TOKENS_TO_CHECK = [
 
 async function getTokenPrice(tokenAddress: string): Promise<number | null> {
     try {
+        // Check cache first
+        const cachedPrice = await redisService.get(`eth:price:${tokenAddress}`);
+        if (cachedPrice) {
+            return parseFloat(cachedPrice);
+        }
+
         const response = await axios.get<DexScreenerResponse>(
             `https://api.dexscreener.com/latest/dex/search/?q=${tokenAddress}`
         );
@@ -58,6 +65,8 @@ async function getTokenPrice(tokenAddress: string): Promise<number | null> {
                 const price = Number(pair.priceUsd);
                 if (!isNaN(price) && price > 0) {
                     console.log(`Found price for ${tokenAddress}: $${price}`);
+                    // Cache the price for 5 minutes
+                    await redisService.set(`eth:price:${tokenAddress}`, price.toString(), 300);
                     return price;
                 }
             }
