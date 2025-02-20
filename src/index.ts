@@ -61,7 +61,7 @@ const getAllTokensHeldByWallet = async (walletAddress: string) => {
 
         console.log(`Fetching token accounts for ${walletAddress}...`);
 
-        const response = await solanaConnection.getTokenAccountsByOwner(
+        const response = await solanaConnection.getParsedTokenAccountsByOwner(
             wallet,
             {
                 programId: TOKEN_PROGRAM_ID,
@@ -79,19 +79,13 @@ const getAllTokensHeldByWallet = async (walletAddress: string) => {
         // Parse and filter accounts with balance
         const tokens: TokenInfo[] = response.value
             .map((account) => {
-                const data = account.account.data;
-                const info = Buffer.from(data);
-
-                // Parse token account data
-                const mint = new PublicKey(info.slice(0, 32));
-                const amount = Number(BigInt('0x' + info.slice(64, 72).reverse().toString('hex')));
-                const decimals = info[44];
-
+                const parsedInfo = account.account.data.parsed.info;
+                
                 return {
                     pubkey: account.pubkey.toString(),
-                    mint: mint.toString(),
-                    amount: amount / Math.pow(10, decimals),
-                    decimals: decimals,
+                    mint: parsedInfo.mint,
+                    amount: Number(parsedInfo.tokenAmount.uiAmount),
+                    decimals: parsedInfo.tokenAmount.decimals,
                 };
             })
             .filter((token) => token.amount > 0);
@@ -101,21 +95,36 @@ const getAllTokensHeldByWallet = async (walletAddress: string) => {
             return;
         }
 
-        // Fetch prices for all tokens
-        console.log("\nFetching current market prices...");
+        // Try to fetch prices with better error handling
         let totalPortfolioValue = 0;
+        try {
+            console.log("\nFetching current market prices...");
+            // Split tokens into chunks to avoid URL length limits
+            const CHUNK_SIZE = 100;
+            for (let i = 0; i < tokens.length; i += CHUNK_SIZE) {
+                const chunk = tokens.slice(i, i + CHUNK_SIZE);
+                const mintAddresses = chunk.map(token => token.mint).join(',');
+                
+                try {
+                    const priceResponse = await axios.get(`https://price.jup.ag/v4/price?ids=${mintAddresses}`);
+                    const prices = priceResponse.data.data;
 
-        // Fetch prices for all tokens in parallel
-        await Promise.all(
-            tokens.map(async (token) => {
-                const price = await getTokenPrice(token.mint);
-                if (price !== null) {
-                    token.price = price;
-                    token.usdValue = token.amount * price;
-                    totalPortfolioValue += token.usdValue;
+                    // Update prices for this chunk
+                    chunk.forEach(token => {
+                        const price = prices[token.mint]?.price;
+                        if (price) {
+                            token.price = price;
+                            token.usdValue = token.amount * price;
+                            totalPortfolioValue += token.usdValue;
+                        }
+                    });
+                } catch (priceError: any) {
+                    console.error(`Failed to fetch prices for chunk ${i / CHUNK_SIZE + 1}:`, priceError.message);
                 }
-            })
-        );
+            }
+        } catch (priceError: any) {
+            console.error("Error fetching prices:", priceError.message);
+        }
 
         // Display results
         console.log("\nToken Holdings:");
@@ -135,11 +144,7 @@ const getAllTokensHeldByWallet = async (walletAddress: string) => {
         console.log(`Total Unique Tokens: ${tokens.length}`);
 
     } catch (error) {
-        if (error instanceof Error) {
-            console.error("Error:", error.message);
-        } else {
-            console.error("Unknown error:", error);
-        }
+        console.error("Error:", error instanceof Error ? error.message : error);
     }
 };
 
