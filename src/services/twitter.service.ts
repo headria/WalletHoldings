@@ -37,18 +37,60 @@ export async function hasUserRetweeted(
         }
 
         const data = await response.json();
-        console.log('API Response:', JSON.stringify(data, null, 2));
+        console.log('User ID being checked:', userId);
+        console.log('Tweet ID being checked:', tweetId);
 
-        // Check user's tweets and replies for the retweet
-        const tweets = data.tweets || [];
-        const hasRetweeted = tweets.some((tweet: any) => 
-            tweet.retweeted_status?.id_str === tweetId || 
-            tweet.quoted_status?.id_str === tweetId
-        );
+        // Extract tweets from all possible locations in the response
+        const entries = data?.data?.entries || [];
+        console.log('Number of entries found:', entries.length);
+
+        // Process each entry to find tweets
+        const tweets = entries
+            .filter((entry: any) => {
+                // Get tweets from conversation modules
+                if (entry?.content?.items) {
+                    return entry.content.items.some((item: any) =>
+                        item?.item?.content?.tweetResult?.result
+                    );
+                }
+                // Get direct tweets
+                return entry?.content?.itemContent?.tweet_results?.result;
+            })
+            .flatMap((entry: any) => {
+                if (entry?.content?.items) {
+                    // Extract tweets from conversation modules
+                    return entry.content.items
+                        .map((item: any) => item?.item?.content?.tweetResult?.result)
+                        .filter(Boolean);
+                }
+                // Extract direct tweets
+                return [entry?.content?.itemContent?.tweet_results?.result];
+            })
+            .filter(Boolean);
+
+        console.log(`Found ${tweets.length} tweets to check`);
+
+        // Check for retweets, quotes, or replies to the target tweet
+        const hasRetweeted = tweets.some((tweet: any) => {
+            const isRetweet = tweet.legacy?.retweeted_status?.id_str === tweetId;
+            const isQuote = tweet.legacy?.quoted_status_id_str === tweetId;
+            const isReply = tweet.legacy?.in_reply_to_status_id_str === tweetId;
+            const isOriginalTweet = tweet.rest_id === tweetId;
+
+            if (isRetweet || isQuote || isReply || isOriginalTweet) {
+                console.log('Match found:', {
+                    type: isRetweet ? 'retweet' : isQuote ? 'quote' : isReply ? 'reply' : 'original',
+                    tweetId: tweet.rest_id,
+                    userId: tweet.legacy?.user_id_str,
+                    text: tweet.legacy?.full_text
+                });
+            }
+
+            return isRetweet || isQuote || isReply || isOriginalTweet;
+        });
 
         return {
             hasRetweeted,
-            tweets,
             error: hasRetweeted ? undefined : 'User has not retweeted this tweet'
         };
 

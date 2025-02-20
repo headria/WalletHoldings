@@ -1,10 +1,9 @@
 import { ethers } from 'ethers';
 import axios from 'axios';
 import { COMMON_TOKENS } from './config';
+import { redisService } from './services/redis.service';
 
-// Cache for token prices
-const priceCache = new Map<string, { price: number, timestamp: number }>();
-const PRICE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const PRICE_CACHE_DURATION = 300; // 5 minutes in seconds
 const BATCH_SIZE = 5; // Number of tokens to process in parallel
 
 // Standard ERC20 ABI for balanceOf function
@@ -39,16 +38,23 @@ async function getWorkingEthereumProvider(): Promise<ethers.Provider> {
 }
 
 async function getTokenPriceWithCache(contractAddress: string): Promise<number | null> {
-    const cached = priceCache.get(contractAddress);
-    if (cached && Date.now() - cached.timestamp < PRICE_CACHE_DURATION) {
-        return cached.price;
-    }
-    
     try {
+        // Check Redis cache first
+        const cacheKey = `token:price:${contractAddress}`;
+        const cachedPrice = await redisService.get(cacheKey);
+        
+        if (cachedPrice) {
+            return Number(cachedPrice);
+        }
+        
+        // If not in cache, fetch from API
         const response = await axios.get(`https://api.dexscreener.com/latest/dex/search/?q=${contractAddress}`);
         if (response.data.pairs && response.data.pairs.length > 0) {
             const price = Number(response.data.pairs[0].priceUsd);
-            priceCache.set(contractAddress, { price, timestamp: Date.now() });
+            
+            // Cache the price
+            await redisService.set(cacheKey, price.toString(), PRICE_CACHE_DURATION);
+            
             return price;
         }
     } catch (error) {

@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { checkRetweet } from '../controllers/twitter.controller';
+import { checkRetweet, getWalletVerifications } from '../controllers/twitter.controller';
 
 const router = Router();
 
-router.get('/retweet/:username/:tweetId', checkRetweet);
+router.get('/retweet/:userId/:tweetId/:walletAddress', checkRetweet);
+router.get('/verifications/:walletAddress', getWalletVerifications);
 
 export default router; 

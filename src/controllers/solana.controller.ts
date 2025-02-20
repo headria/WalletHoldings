@@ -3,11 +3,10 @@ import { PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Token } from '../db/models/token';
 import { getWorkingConnection } from '../utils/solana';
+import { redisService } from '../services/redis.service';
 import axios from 'axios';
 
-// Cache for token prices
-const priceCache = new Map<string, { price: number, timestamp: number }>();
-const PRICE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const PRICE_CACHE_DURATION = 300; // 5 minutes in seconds
 
 // Specific tokens we want to check
 const TOKENS_TO_CHECK = [
@@ -29,23 +28,56 @@ interface TokenData {
     price?: number;
 }
 
+interface DexScreenerResponse {
+    schemaVersion: string;
+    pairs: {
+        chainId: string;
+        baseToken: {
+            address: string;
+            symbol: string;
+        };
+        priceUsd: string;
+    }[];
+}
+
 async function getTokenPriceWithCache(mintAddress: string): Promise<number | null> {
-    const cached = priceCache.get(mintAddress);
-    if (cached && Date.now() - cached.timestamp < PRICE_CACHE_DURATION) {
-        return cached.price;
-    }
-    
     try {
-        const response = await axios.get(`https://api.dexscreener.com/latest/dex/search/?q=${mintAddress}`);
-        if (response.data.pairs && response.data.pairs.length > 0) {
-            const price = Number(response.data.pairs[0].priceUsd);
-            priceCache.set(mintAddress, { price, timestamp: Date.now() });
-            return price;
+        // Check Redis cache first
+        const cacheKey = `token:price:solana:${mintAddress}`;
+        const cachedPrice = await redisService.get(cacheKey);
+        
+        if (cachedPrice) {
+            return Number(cachedPrice);
         }
+        
+        // If not in cache, fetch from API
+        const response = await axios.get<DexScreenerResponse>(
+            `https://api.dexscreener.com/latest/dex/search/?q=${mintAddress}`
+        );
+
+        if (response.data.pairs && response.data.pairs.length > 0) {
+            // Find the pair that matches our token address
+            const pair = response.data.pairs.find(p => 
+                p.baseToken.address.toLowerCase() === mintAddress.toLowerCase()
+            );
+
+            if (pair && pair.priceUsd) {
+                const price = Number(pair.priceUsd);
+                if (!isNaN(price) && price > 0) {
+                    // Cache the price
+                    await redisService.set(cacheKey, price.toString(), PRICE_CACHE_DURATION);
+                    console.log(`Cached price for ${mintAddress}: $${price}`);
+                    return price;
+                }
+            }
+        }
+        
+        console.log(`No valid price found for token ${mintAddress}`);
+        return null;
     } catch (error) {
         console.error(`Error fetching price for ${mintAddress}:`, error);
+        return null;
     }
-    return null;
 }
 
 export const getSpecificTokens = async (req: Request, res: Response) => {
