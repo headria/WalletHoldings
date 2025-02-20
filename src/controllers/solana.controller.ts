@@ -5,6 +5,10 @@ import { Token } from '../db/models/token';
 import { getWorkingConnection } from '../utils/solana';
 import axios from 'axios';
 
+// Cache for token prices
+const priceCache = new Map<string, { price: number, timestamp: number }>();
+const PRICE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 // Specific tokens we want to check
 const TOKENS_TO_CHECK = [
     'HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC',
@@ -25,18 +29,23 @@ interface TokenData {
     price?: number;
 }
 
-async function getTokenPrice(mintAddress: string): Promise<number | null> {
+async function getTokenPriceWithCache(mintAddress: string): Promise<number | null> {
+    const cached = priceCache.get(mintAddress);
+    if (cached && Date.now() - cached.timestamp < PRICE_CACHE_DURATION) {
+        return cached.price;
+    }
+    
     try {
         const response = await axios.get(`https://api.dexscreener.com/latest/dex/search/?q=${mintAddress}`);
         if (response.data.pairs && response.data.pairs.length > 0) {
-            // Get first pair's USD price
-            return Number(response.data.pairs[0].priceUsd);
+            const price = Number(response.data.pairs[0].priceUsd);
+            priceCache.set(mintAddress, { price, timestamp: Date.now() });
+            return price;
         }
-        return null;
     } catch (error) {
         console.error(`Error fetching price for ${mintAddress}:`, error);
-        return null;
     }
+    return null;
 }
 
 export const getSpecificTokens = async (req: Request, res: Response) => {
@@ -60,14 +69,10 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
             .map((account) => {
                 const parsedInfo = account.account.data.parsed.info;
                 const tokenAmount = parsedInfo.tokenAmount;
-
-                // Use uiAmount for display
-                const amount = Number(tokenAmount.uiAmount);
-
                 return {
                     pubkey: account.pubkey.toString(),
                     mint: parsedInfo.mint,
-                    amount,
+                    amount: Number(tokenAmount.uiAmount),
                     decimals: tokenAmount.decimals,
                     usdValue: 0,
                     price: 0
@@ -77,16 +82,16 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
                 token.amount > 0 && TOKENS_TO_CHECK.includes(token.mint)
             );
 
-        // Fetch prices and calculate USD values
+        // Fetch prices using cache
         let totalUsdValue = 0;
-        for (const token of tokens) {
-            const price = await getTokenPrice(token.mint);
+        await Promise.all(tokens.map(async (token) => {
+            const price = await getTokenPriceWithCache(token.mint);
             if (price) {
                 token.price = price;
                 token.usdValue = token.amount * price;
                 totalUsdValue += token.usdValue;
             }
-        }
+        }));
 
         // Save to database
         if (tokens.length > 0) {
@@ -118,7 +123,8 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
                 found: tokens.map(t => ({
                     mint: t.mint,
                     usdPrice: t.price?.toFixed(6) || 'Unknown',
-                    usdValue: t.usdValue?.toFixed(2) || 'Unknown'
+                    usdValue: (t.amount * (t.price || 0)).toFixed(2) || 'Unknown',
+                    tokenAmount: t.amount.toFixed(2)
                 })),
                 notFound: TOKENS_TO_CHECK.filter(mint =>
                     !tokens.some(t => t.mint === mint)

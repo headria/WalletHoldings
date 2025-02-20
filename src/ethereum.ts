@@ -2,6 +2,11 @@ import { ethers } from 'ethers';
 import axios from 'axios';
 import { COMMON_TOKENS } from './config';
 
+// Cache for token prices
+const priceCache = new Map<string, { price: number, timestamp: number }>();
+const PRICE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const BATCH_SIZE = 5; // Number of tokens to process in parallel
+
 // Standard ERC20 ABI for balanceOf function
 const ERC20_ABI = [
     "function balanceOf(address owner) view returns (uint256)",
@@ -33,16 +38,54 @@ async function getWorkingEthereumProvider(): Promise<ethers.Provider> {
     throw new Error("Unable to connect to any Ethereum RPC endpoint");
 }
 
-async function getTokenPrice(contractAddress: string): Promise<number | null> {
+async function getTokenPriceWithCache(contractAddress: string): Promise<number | null> {
+    const cached = priceCache.get(contractAddress);
+    if (cached && Date.now() - cached.timestamp < PRICE_CACHE_DURATION) {
+        return cached.price;
+    }
+    
     try {
-        const response = await axios.get(
-            `https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`
-        );
-        return response.data?.pairs?.[0]?.priceUsd || null;
+        const response = await axios.get(`https://api.dexscreener.com/latest/dex/search/?q=${contractAddress}`);
+        if (response.data.pairs && response.data.pairs.length > 0) {
+            const price = Number(response.data.pairs[0].priceUsd);
+            priceCache.set(contractAddress, { price, timestamp: Date.now() });
+            return price;
+        }
     } catch (error) {
         console.error(`Error fetching price for ${contractAddress}:`, error);
-        return null;
     }
+    return null;
+}
+
+async function batchProcessTokens(tokens: string[], provider: ethers.Provider, walletAddress: string): Promise<TokenInfo[]> {
+    const results = await Promise.all(tokens.map(async (contractAddress) => {
+        try {
+            const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
+            
+            const [balance, decimals, symbol, price] = await Promise.all([
+                contract.balanceOf(walletAddress),
+                contract.decimals(),
+                contract.symbol(),
+                getTokenPriceWithCache(contractAddress)
+            ]);
+
+            const formattedBalance = Number(ethers.formatUnits(balance, decimals));
+            
+            return {
+                contractAddress,
+                symbol,
+                balance: formattedBalance,
+                decimals: Number(decimals),
+                price: price || 0,
+                usdValue: price ? formattedBalance * price : 0
+            } as TokenInfo;
+        } catch (error) {
+            console.error(`Error processing token ${contractAddress}:`, error);
+            return null;
+        }
+    }));
+
+    return results.filter((result): result is TokenInfo => result !== null && result.balance > 0);
 }
 
 export interface TokenInfo {
@@ -57,69 +100,31 @@ export interface TokenInfo {
 export async function getAllEthereumTokens(walletAddress: string): Promise<TokenInfo[]> {
     try {
         const provider = await getWorkingEthereumProvider();
-        const tokens: TokenInfo[] = [];
+        console.log(`\nChecking Ethereum wallet ${walletAddress}...`);
 
-        // Get ETH balance and price in parallel
-        const [ethBalance, ethPrice] = await Promise.all([
-            provider.getBalance(walletAddress),
-            getTokenPrice('0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2')
-        ]);
-
-        const formattedEthBalance = Number(ethers.formatEther(ethBalance));
-        
-        if (formattedEthBalance > 0.0001) {
-            tokens.push({
-                contractAddress: 'ETH',
-                symbol: 'ETH',
-                balance: formattedEthBalance,
-                decimals: 18,
-                price: ethPrice ?? 0,
-                usdValue: ethPrice ? formattedEthBalance * ethPrice : 0
-            });
+        // Process tokens in batches
+        const batches = [];
+        for (let i = 0; i < COMMON_TOKENS.length; i += BATCH_SIZE) {
+            batches.push(COMMON_TOKENS.slice(i, i + BATCH_SIZE));
         }
 
-        // Check ERC20 tokens
-        for (const contractAddress of COMMON_TOKENS) {
-            try {
-                const contract = new ethers.Contract(
-                    contractAddress,
-                    ERC20_ABI,
-                    provider
-                );
-
-                const [balance, decimals, symbol] = await Promise.all([
-                    contract.balanceOf(walletAddress),
-                    contract.decimals(),
-                    contract.symbol()
-                ]);
-
-                const balanceBigInt = BigInt(balance.toString());
-                if (balanceBigInt === BigInt(0)) {
-                    continue;
-                }
-
-                const divisor = BigInt(10 ** Number(decimals));
-                const formattedBalance = Number(
-                    (balanceBigInt * BigInt(10000) / divisor) / BigInt(10000)
-                );
-
-                if (formattedBalance > 0) {
-                    const price = await getTokenPrice(contractAddress);
-                    tokens.push({
-                        contractAddress,
-                        symbol,
-                        balance: formattedBalance,
-                        decimals: Number(decimals),
-                        price: price ?? 0,
-                        usdValue: price ? formattedBalance * price : 0
-                    });
-                }
-            } catch (error) {
-                console.error(`Error checking token ${contractAddress}`);
-            }
+        const results = [];
+        for (const batch of batches) {
+            const batchResults = await batchProcessTokens(batch, provider, walletAddress);
+            results.push(...batchResults);
         }
 
-        return tokens;
+        // Calculate total portfolio value
+        const totalPortfolioValue = results.reduce((sum, token) => 
+            sum + (token?.usdValue ?? 0), 0
+        );
+
+        console.log('\nPortfolio Summary:');
+        console.log('==================');
+        console.log(`Total Tokens Found: ${results.length}`);
+        console.log(`Total Portfolio Value: $${totalPortfolioValue.toFixed(2)}`);
+
+        return results;
 
     } catch (error) {
         console.error("Error:", error);
