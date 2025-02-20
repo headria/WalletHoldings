@@ -75,120 +75,187 @@ class TokenService {
             const tokensToCheck = TOKENS_MAP[chainId as keyof typeof TOKENS_MAP];
             console.log(`Fetching data for ${chainId}, total tokens to check: ${tokensToCheck.length}`);
             
-            const tokenInfos: TokenInfo[] = [];
+            const tokenMap = new Map<string, TokenInfo>(); // Use map for uniqueness
             const processedTokens = new Set<string>(); // Track processed tokens
             
-            // For Solana, we need to fetch each token individually
+            // Try to get cached data first
+            const cachedData = await this.getCachedTokens(chainId);
+            if (cachedData.length > 0) {
+                console.log(`Using cached data for ${chainId}`);
+                // Ensure cached data has no duplicates
+                cachedData.forEach(token => {
+                    const key = `${token.chainId}:${token.address.toLowerCase()}`;
+                    if (!tokenMap.has(key)) {
+                        tokenMap.set(key, token);
+                    }
+                });
+                return Array.from(tokenMap.values());
+            }
+
             if (chainId === 'solana') {
                 for (const token of tokensToCheck) {
-                    if (processedTokens.has(token.toLowerCase())) {
-                        console.log(`Skipping duplicate token: ${token}`);
-                        continue;
-                    }
+                    const tokenLower = token.toLowerCase();
+                    if (processedTokens.has(tokenLower)) continue;
 
                     try {
+                        const cachedToken = await this.getCachedToken(chainId, tokenLower);
+                        if (cachedToken) {
+                            const key = `${chainId}:${tokenLower}`;
+                            if (!tokenMap.has(key)) {
+                                tokenMap.set(key, cachedToken);
+                                processedTokens.add(tokenLower);
+                            }
+                            continue;
+                        }
+
                         console.log(`Fetching Solana token: ${token}`);
                         const url = `https://api.dexscreener.com/latest/dex/tokens/${token}`;
                         const response = await axios.get(url);
                         
-                        if (response.data.pairs && response.data.pairs.length > 0) {
-                            const pair = response.data.pairs[0]; // Get first pair
-                            if (pair.baseToken && pair.priceUsd) {
-                                tokenInfos.push({
-                                    name: pair.baseToken.name || 'Unknown',
-                                    symbol: pair.baseToken.symbol || 'UNKNOWN',
-                                    price: parseFloat(pair.priceUsd) || 0,
-                                    chainId: chainId,
-                                    address: token
-                                });
-                                processedTokens.add(token.toLowerCase());
+                        if (response.data.pairs?.[0]) {
+                            const pair = response.data.pairs[0];
+                            const tokenInfo = {
+                                name: pair.baseToken.name || 'Unknown',
+                                symbol: pair.baseToken.symbol || 'UNKNOWN',
+                                price: parseFloat(pair.priceUsd) || 0,
+                                chainId: chainId,
+                                address: tokenLower
+                            };
+                            
+                            const key = `${chainId}:${tokenLower}`;
+                            if (!tokenMap.has(key)) {
+                                tokenMap.set(key, tokenInfo);
+                                processedTokens.add(tokenLower);
+                                await this.cacheToken(chainId, tokenLower, tokenInfo);
                                 console.log(`Added ${pair.baseToken.symbol} with price $${pair.priceUsd}`);
                             }
                         }
-                        await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limit delay
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                     } catch (err) {
                         console.error(`Error fetching Solana token ${token}:`, err);
                     }
                 }
             } else {
-                // For ETH and Base, we can batch the requests
                 const batchSize = 3;
                 const uniqueTokens = [...new Set(tokensToCheck.map(t => t.toLowerCase()))];
                 
                 for (let i = 0; i < uniqueTokens.length; i += batchSize) {
                     const batchTokens = uniqueTokens.slice(i, i + batchSize);
+                    
+                    // Check cache for each token in batch
+                    const uncachedTokens = [];
+                    for (const token of batchTokens) {
+                        const cachedToken = await this.getCachedToken(chainId, token);
+                        if (cachedToken) {
+                            const key = `${chainId}:${token}`;
+                            if (!tokenMap.has(key)) {
+                                tokenMap.set(key, cachedToken);
+                                processedTokens.add(token);
+                            }
+                        } else {
+                            uncachedTokens.push(token);
+                        }
+                    }
+
+                    if (uncachedTokens.length === 0) continue;
+
                     try {
-                        console.log(`Fetching ${chainId} batch:`, batchTokens);
-                        const url = `https://api.dexscreener.com/latest/dex/tokens/${batchTokens.join(',')}`;
+                        console.log(`Fetching ${chainId} batch:`, uncachedTokens);
+                        const url = `https://api.dexscreener.com/latest/dex/tokens/${uncachedTokens.join(',')}`;
                         const response = await axios.get(url);
                         
-                        if (response.data.pairs && response.data.pairs.length > 0) {
-                            // Process each pair
-                            response.data.pairs.forEach((pair: any) => {
+                        if (response.data.pairs?.length > 0) {
+                            for (const pair of response.data.pairs) {
                                 const address = pair.baseToken.address.toLowerCase();
                                 if (!processedTokens.has(address) && pair.baseToken && pair.priceUsd) {
-                                    tokenInfos.push({
+                                    const tokenInfo = {
                                         name: pair.baseToken.name || 'Unknown',
                                         symbol: pair.baseToken.symbol || 'UNKNOWN',
                                         price: parseFloat(pair.priceUsd) || 0,
                                         chainId: chainId,
                                         address: address
-                                    });
+                                    };
+                                    
+                                    const key = `${chainId}:${address}`;
+                                    if (!tokenMap.has(key)) {
+                                        tokenMap.set(key, tokenInfo);
+                                    }
                                     processedTokens.add(address);
+                                    await this.cacheToken(chainId, address, tokenInfo);
                                     console.log(`Added ${pair.baseToken.symbol} with price $${pair.priceUsd}`);
                                 }
-                            });
+                            }
                         }
-                        await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limit delay
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                     } catch (err) {
                         console.error(`Error fetching ${chainId} batch:`, err);
                     }
                 }
             }
 
-            console.log(`Successfully fetched ${tokenInfos.length} unique tokens for ${chainId}`);
-            return tokenInfos;
+            const uniqueTokens = Array.from(tokenMap.values());
+            
+            // Cache the full result
+            if (uniqueTokens.length > 0) {
+                await this.cacheTokens(chainId, uniqueTokens);
+            }
 
+            return uniqueTokens;
         } catch (error) {
             console.error(`Error in fetchDexScreenerData for ${chainId}:`, error);
             return [];
         }
     }
 
+    private async getCachedToken(chainId: string, address: string): Promise<TokenInfo | null> {
+        const key = `token:${chainId}:${address.toLowerCase()}`;
+        const cached = await redisService.get(key);
+        return cached ? JSON.parse(cached) : null;
+    }
+
+    private async cacheToken(chainId: string, address: string, tokenInfo: TokenInfo): Promise<void> {
+        const key = `token:${chainId}:${address.toLowerCase()}`;
+        await redisService.set(key, JSON.stringify(tokenInfo), this.PRICE_TTL);
+    }
+
+    private async getCachedTokens(chainId: string): Promise<TokenInfo[]> {
+        const key = `tokens:${chainId}`;
+        const cached = await redisService.get(key);
+        return cached ? JSON.parse(cached) : [];
+    }
+
+    private async cacheTokens(chainId: string, tokens: TokenInfo[]): Promise<void> {
+        const key = `tokens:${chainId}`;
+        await redisService.set(key, JSON.stringify(tokens), this.PRICE_TTL);
+    }
+
     async getAllTokens(): Promise<TokenInfo[]> {
         try {
             const chains = ['solana', 'ethereum', 'base'];
-            const allTokens: TokenInfo[] = [];
+            const tokenMap = new Map<string, TokenInfo>(); // Use map to ensure uniqueness
 
-            for (const chain of chains) {
-                console.log(`Processing chain: ${chain}`);
-                const tokenInfoKey = `token_info:${chain}`;
-
-                // Clear existing cache to force fresh data fetch
-                await this.clearCache(chain);
-                
-                let tokenInfo: TokenInfo[] = [];
+            await Promise.all(chains.map(async (chain) => {
                 const freshData = await this.fetchDexScreenerData(chain);
-                
                 if (freshData.length > 0) {
-                    console.log(`Got fresh data for ${chain}: ${freshData.length} tokens`);
-                    tokenInfo = freshData;
-                    await redisService.set(
-                        tokenInfoKey,
-                        JSON.stringify(freshData),
-                        this.INFO_TTL
-                    );
-                    allTokens.push(...tokenInfo);
-                } else {
-                    console.log(`No fresh data found for ${chain}`);
+                    freshData.forEach(token => {
+                        const key = `${token.chainId}:${token.address.toLowerCase()}`;
+                        if (!tokenMap.has(key)) {
+                            tokenMap.set(key, token);
+                        }
+                    });
                 }
-            }
+            }));
 
-            console.log(`Total tokens fetched: ${allTokens.length}`);
-            if (allTokens.length === 0) {
-                console.log('No tokens found in any chain. Check token addresses and API responses.');
-            }
-            return allTokens;
+            const uniqueTokens = Array.from(tokenMap.values());
+            console.log(`Total unique tokens fetched: ${uniqueTokens.length}`);
+            
+            // Log breakdown by chain
+            chains.forEach(chain => {
+                const chainTokens = uniqueTokens.filter(token => token.chainId === chain);
+                console.log(`${chain}: ${chainTokens.length} tokens`);
+            });
+
+            return uniqueTokens;
 
         } catch (error) {
             console.error('Error in getAllTokens:', error);
