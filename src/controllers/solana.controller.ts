@@ -173,4 +173,64 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
         console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
+};
+
+export const getStoredSolanaTokens = async (req: Request, res: Response) => {
+    try {
+        const { walletAddress } = req.params;
+
+        if (!walletAddress) {
+            return res.status(400).json({
+                success: false,
+                error: 'Wallet address is required'
+            });
+        }
+
+        // Find all tokens for this wallet on solana chain
+        const storedTokens = await Token.find({
+            wallet: walletAddress,
+            chain: 'solana'
+        });
+
+        if (!storedTokens || storedTokens.length === 0) {
+            return res.json({
+                success: false,
+                message: 'No stored data found for this wallet'
+            });
+        }
+
+        // Calculate total USD value
+        const totalUsdValue = storedTokens.reduce((sum, token) => sum + (token.value || 0), 0);
+
+        // Format the response
+        const formattedTokens = storedTokens.map(token => ({
+            mint: token.mint,
+            amount: token.amount,
+            usdPrice: token.price?.toFixed(6) || 'Unknown',
+            usdValue: token.value?.toFixed(2) || 'Unknown',
+            lastUpdated: token.lastUpdated
+        }));
+
+        res.json({
+            success: true,
+            data: {
+                found: formattedTokens,
+                notFound: TOKENS_TO_CHECK.filter(mint =>
+                    !storedTokens.some(t => t.mint === mint)
+                ),
+                summary: {
+                    totalFound: storedTokens.length,
+                    totalChecked: TOKENS_TO_CHECK.length,
+                    totalUsdValue: totalUsdValue.toFixed(2)
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching stored tokens:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
+    }
 }; 

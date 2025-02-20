@@ -189,24 +189,37 @@ export const getStoredEthereumTokens = async (req: Request, res: Response) => {
             });
         }
 
-        const storedData = await Token.findOne({
+        // Find all tokens for this wallet on ethereum chain
+        const storedTokens = await Token.find({
             wallet: walletAddress,
             chain: 'ethereum'
         });
 
-        if (!storedData) {
+        if (!storedTokens || storedTokens.length === 0) {
             return res.json({
                 success: false,
                 message: 'No stored data found for this wallet'
             });
         }
 
+        // Calculate total USD value
+        const totalUsdValue = storedTokens.reduce((sum, token) => sum + (token.value || 0), 0);
+
+        // Format the response
+        const formattedTokens = storedTokens.map(token => ({
+            address: token.mint,
+            amount: token.amount,
+            usdPrice: token.price?.toFixed(6) || 'Unknown',
+            usdValue: token.value?.toFixed(2) || 'Unknown',
+            lastUpdated: token.lastUpdated
+        }));
+
         res.json({
             success: true,
             data: {
-                tokens: storedData.tokens,
-                totalUsdValue: storedData.totalUsdValue,
-                lastUpdated: storedData.lastUpdated
+                tokens: formattedTokens,
+                totalUsdValue: totalUsdValue.toFixed(2),
+                lastUpdated: Math.max(...storedTokens.map(t => t.lastUpdated.getTime()))
             }
         });
 
