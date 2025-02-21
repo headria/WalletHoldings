@@ -13,6 +13,12 @@ const retweetVerificationSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    chain: {
+        type: String,
+        required: true,
+        enum: ['ethereum', 'solana', 'base' , 'bsc'],
+        default: 'solana'
+    },
     verified: {
         type: Boolean,
         default: true
@@ -24,6 +30,6 @@ const retweetVerificationSchema = new mongoose.Schema({
 });
 
 // Compound index to ensure unique combinations
-retweetVerificationSchema.index({ tweetId: 1, userId: 1, walletAddress: 1 }, { unique: true });
+retweetVerificationSchema.index({ tweetId: 1, userId: 1, walletAddress: 1, chain: 1 }, { unique: true });
 
 export const RetweetVerification = mongoose.model('RetweetVerification', retweetVerificationSchema); 

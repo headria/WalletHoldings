@@ -4,7 +4,7 @@ const tokenSchema = new mongoose.Schema({
     chain: {
         type: String,
         required: true,
-        enum: ['ethereum', 'solana', 'base']
+        enum: ['ethereum', 'solana', 'base', 'bsc']
     },
     mint: {
         type: String,
