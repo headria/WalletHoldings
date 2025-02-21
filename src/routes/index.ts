@@ -14,5 +14,6 @@ router.use('/base', baseRoutes);
 router.use('/wallets', walletRoutes);
 router.use('/binance', binanceRoutes);
 router.use('/tokens', tokenRoutes);
+router.use('/wallets', walletRoutes)
 
 module.exports = router; 
