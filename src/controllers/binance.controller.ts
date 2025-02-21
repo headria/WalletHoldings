@@ -38,6 +38,8 @@ interface TokenData {
     balance: number;
     price?: number;
     usdValue?: number;
+    name?: string;
+    chain?: string;
 }
 
 async function getTokenPrice(tokenAddress: string): Promise<number | null> {
@@ -89,41 +91,8 @@ export const getAllBinanceTokens = async (req: Request, res: Response) => {
             });
         }
 
-        const tokens: TokenData[] = await getBscTokens(walletAddress);
+        const tokens = await getBscTokens(walletAddress);
 
-        // Update prices using DexScreener
-        await Promise.all(tokens.map(async (token: TokenData) => {
-            const price = await getTokenPrice(token.contractAddress);
-            console.log(`[BSC] Updating price for token ${price}`, token.balance);
-            token.price = price || 0; // Set price to 0 if null
-            token.usdValue = token.balance * (price || 0);
-        }));
-
-        if (tokens.length > 0) {
-            const bulkOps = tokens.map((token: TokenData) => ({
-                updateOne: {
-                    filter: {
-                        chain: 'bsc',
-                        mint: token.contractAddress,
-                        wallet: walletAddress
-                    },
-                    update: {
-                        $set: {
-                            amount: token.balance,
-                            price: token.price || 0,
-                            value: token.usdValue || 0,
-                            lastUpdated: new Date()
-                        }
-                    },
-                    upsert: true
-                }
-            }));
-
-            await Token.bulkWrite(bulkOps);
-            console.log(`[BSC] Stored ${tokens.length} tokens in database`);
-        }
-
-        // If no tokens found
         if (!tokens || tokens.length === 0) {
             return res.json({
                 success: false,
@@ -140,30 +109,51 @@ export const getAllBinanceTokens = async (req: Request, res: Response) => {
             });
         }
 
-        // Format response tokens
-        const formattedTokens = tokens.map(token => ({
+        const found = tokens.map(token => ({
             address: token.contractAddress,
+            name: token.name || 'Unknown',
+            chain: 'bsc',
             amount: token.balance,
             usdPrice: token.price?.toFixed(6) || '0.00',
             usdValue: token.usdValue?.toFixed(2) || '0.00'
         }));
 
-        // Calculate total USD value
-        const totalUsdValue = tokens.reduce((sum: number, token: TokenData) =>
-            sum + (token.usdValue || 0), 0);
-
-        // Update the some function with proper type
-        const notFound = BSC_TOKENS_TO_CHECK.filter(addr =>
-            !tokens.some((t: TokenData) => t.contractAddress === addr)
+        const notFound = BSC_TOKENS_TO_CHECK.filter(
+            address => !tokens.find(t => t.contractAddress.toLowerCase() === address.toLowerCase())
         );
+
+        const totalUsdValue = tokens.reduce((sum, token) => sum + (token.usdValue || 0), 0);
+
+        if (tokens.length > 0) {
+            await Token.bulkWrite(tokens.map(token => ({
+                updateOne: {
+                    filter: {
+                        chain: 'bsc',
+                        mint: token.contractAddress,
+                        wallet: walletAddress
+                    },
+                    update: {
+                        $set: {
+                            amount: token.balance,
+                            price: token.price || 0,
+                            value: token.usdValue || 0,
+                            name: token.name || 'Unknown',
+                            lastUpdated: new Date()
+                        }
+                    },
+                    upsert: true
+                }
+            })));
+            console.log(`[BSC] Stored ${tokens.length} tokens in database`);
+        }
 
         res.json({
             success: true,
             data: {
-                found: formattedTokens,
-                notFound: notFound,
+                found,
+                notFound,
                 summary: {
-                    totalFound: tokens.length,
+                    totalFound: found.length,
                     totalChecked: BSC_TOKENS_TO_CHECK.length,
                     totalUsdValue: totalUsdValue.toFixed(2)
                 }
@@ -209,6 +199,8 @@ export const getStoredBinanceTokens = async (req: Request, res: Response) => {
         // Format the response
         const formattedTokens = storedTokens.map(token => ({
             address: token.mint,
+            name: token.name || 'Unknown',
+            chain: 'bsc',
             amount: token.amount,
             usdPrice: token.price?.toFixed(6) || 'Unknown',
             usdValue: token.value?.toFixed(2) || 'Unknown',
@@ -231,4 +223,42 @@ export const getStoredBinanceTokens = async (req: Request, res: Response) => {
             error: error instanceof Error ? error.message : 'Unknown error occurred'
         });
     }
-}; 
+};
+
+export async function getBinanceTokens(req: Request, res: Response) {
+    try {
+        const { address } = req.params;
+        const tokens = await getBscTokens(address);
+
+        const found = tokens.map(token => ({
+            address: token.contractAddress,
+            name: token.name,
+            chain: 'bsc',
+            amount: token.balance,
+            usdPrice: token.price?.toFixed(6) || '0.00',
+            usdValue: token.usdValue?.toFixed(2) || '0.00'
+        }));
+
+        const notFound = BSC_TOKENS_TO_CHECK.filter(
+            address => !tokens.find(t => t.contractAddress.toLowerCase() === address.toLowerCase())
+        );
+
+        const totalUsdValue = tokens.reduce((sum, token) => sum + (token.usdValue || 0), 0);
+
+        res.json({
+            success: true,
+            data: {
+                found,
+                notFound,
+                summary: {
+                    totalFound: found.length,
+                    totalChecked: BSC_TOKENS_TO_CHECK.length,
+                    totalUsdValue: totalUsdValue.toFixed(2)
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error in getBinanceTokens:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch Binance tokens' });
+    }
+} 
