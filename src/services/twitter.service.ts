@@ -17,12 +17,15 @@ export async function hasUserRetweeted(
 ): Promise<RetweetCheckResult> {
     try {
         // Validate that userId is numeric
-        if (!/^\d+$/.test(userId)) {
-            throw new Error('User ID must be numeric. Please provide a Twitter user ID, not username.');
-        }
+        // if (!/^\d+$/.test(userId)) {
+        //     throw new Error('User ID must be numeric. Please provide a Twitter user ID, not username.');
+        // }
+
+        const numId = await getUserIdFromUsername(userId);
+        console.log(numId, 'numId')
 
         const response = await fetch(
-            `https://twitter-api71.p.rapidapi.com/UserRepliesAndTweets?user=${userId}`,
+            `https://twitter-api71.p.rapidapi.com/UserRepliesAndTweets?user=${numId}`,
             {
                 method: 'GET',
                 headers: {
@@ -37,6 +40,7 @@ export async function hasUserRetweeted(
         }
 
         const data = await response.json();
+
         console.log('User ID being checked:', userId);
         console.log('Tweet ID being checked:', tweetId);
 
@@ -75,9 +79,9 @@ export async function hasUserRetweeted(
         // Check for retweets, quotes, or replies to the target tweet
         const hasRetweeted = tweets.some((tweet: any) => {
             // Check if this is a retweet and get the original tweet ID
-            const retweetedStatusId = tweet.legacy?.retweeted_status_result?.result?.rest_id || 
-                                     tweet.legacy?.retweeted_status?.id_str;
-            
+            const retweetedStatusId = tweet.legacy?.retweeted_status_result?.result?.rest_id ||
+                tweet.legacy?.retweeted_status?.id_str;
+
             const isRetweet = retweetedStatusId === tweetId;
             const isQuote = tweet.legacy?.quoted_status_id_str === tweetId;
             const isReply = tweet.legacy?.in_reply_to_status_id_str === tweetId;
@@ -121,4 +125,48 @@ async function getGuestToken(): Promise<string> {
 
     const data = await response.json();
     return data.guest_token;
+}
+
+/**
+ * Get numeric user ID from X (Twitter) username
+ * @param username Twitter username (without @ symbol)
+ * @returns Promise<string> Numeric user ID
+ * @throws Error if username is invalid or user not found
+ */
+export async function getUserIdFromUsername(username: string): Promise<string> {
+    try {
+        // Remove @ symbol if present
+        username = username.replace('@', '');
+
+        const response = await fetch(
+            `https://twitter241.p.rapidapi.com/user?username=${username}`,
+            {
+                method: 'GET',
+                headers: {
+                    'x-rapidapi-host': 'twitter241.p.rapidapi.com',
+                    'x-rapidapi-key': process.env.TWITTER_RAPIDAPI_KEY || ''
+                }
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Twitter API Error Response:', errorText);
+            throw new Error(`Failed to fetch user ID: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('Twitter API Response:', JSON.stringify(data, null, 2));
+
+        // Extract user ID from response - updated path based on actual response structure
+        const userId = data?.result?.data?.user?.result?.rest_id;
+
+        if (!userId) {
+            throw new Error(`Could not find user ID for username: ${username}`);
+        }
+        return userId;
+    } catch (error) {
+        console.error('Error getting user ID:', error);
+        throw new Error(error instanceof Error ? error.message : 'Failed to get user ID');
+    }
 } 
