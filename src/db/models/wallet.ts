@@ -10,6 +10,14 @@ const walletSchema = new mongoose.Schema({
     lastUpdated: {
         type: Date,
         default: Date.now
+    },
+    qualifyingToken: {
+        mint: String,
+        chain: {
+            type: String,
+            enum: ['ethereum', 'solana', 'base', 'bsc']
+        },
+        value: Number
     }
 });
 
