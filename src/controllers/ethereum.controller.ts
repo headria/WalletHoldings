@@ -9,6 +9,7 @@ interface EthToken {
     amount: number;
     usdValue?: number;
     price?: number;
+    name?: string;
 }
 
 interface DexScreenerResponse {
@@ -32,6 +33,14 @@ interface DexScreenerResponse {
     }[];
 }
 
+interface TokenInfo {
+    contractAddress: string;
+    balance: number;
+    price?: number;
+    usdValue?: number;
+    name?: string;
+}
+
 // Specific tokens we want to check on Ethereum
 const ETH_TOKENS_TO_CHECK = [
     "0x5a3e6a77ba2f983ec0d371ea3b475f8bc0811ad5",
@@ -45,12 +54,16 @@ const ETH_TOKENS_TO_CHECK = [
     '0xEbcD1Cc56Db8ce89B4A83C037103c870998034C7',
 ];
 
-async function getTokenPrice(tokenAddress: string): Promise<number | null> {
+async function getTokenPrice(tokenAddress: string): Promise<{ price: number | null, name?: string }> {
     try {
         // Check cache first
-        const cachedPrice = await redisService.get(`eth:price:${tokenAddress}`);
-        if (cachedPrice) {
-            return parseFloat(cachedPrice);
+        const cacheKey = `eth:price:${tokenAddress}`;
+        const nameKey = `eth:name:${tokenAddress}`;
+        const cachedPrice = await redisService.get(cacheKey);
+        const cachedName = await redisService.get(nameKey);
+
+        if (cachedPrice && cachedName) {
+            return { price: parseFloat(cachedPrice), name: cachedName };
         }
 
         const response = await axios.get<DexScreenerResponse>(
@@ -58,27 +71,28 @@ async function getTokenPrice(tokenAddress: string): Promise<number | null> {
         );
 
         if (response.data.pairs && response.data.pairs.length > 0) {
-            // Find the pair where our token is the base token
             const pair = response.data.pairs.find(p =>
                 p.baseToken.address.toLowerCase() === tokenAddress.toLowerCase()
             );
 
             if (pair && pair.priceUsd) {
                 const price = Number(pair.priceUsd);
+                const name = pair.baseToken.name;
                 if (!isNaN(price) && price > 0) {
                     console.log(`Found price for ${tokenAddress}: $${price}`);
-                    // Cache the price for 5 minutes
-                    await redisService.set(`eth:price:${tokenAddress}`, price.toString(), 300);
-                    return price;
+                    // Cache both price and name
+                    await redisService.set(cacheKey, price.toString(), 300);
+                    await redisService.set(nameKey, name, 300);
+                    return { price, name };
                 }
             }
         }
 
         console.log(`No valid price found for token ${tokenAddress}`);
-        return null;
+        return { price: null };
     } catch (error) {
         console.error(`Error fetching price for ${tokenAddress}:`, error);
-        return null;
+        return { price: null };
     }
 }
 
@@ -97,9 +111,10 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
 
         // Update prices using DexScreener
         await Promise.all(tokens.map(async (token) => {
-            const price = await getTokenPrice(token.contractAddress);
+            const { price, name } = await getTokenPrice(token.contractAddress);
             if (price !== null) {
                 token.price = price;
+                token.name = name;
                 token.usdValue = token.balance * price;
             }
         }));
@@ -147,6 +162,8 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
         // Format response tokens
         const formattedTokens = tokens.map(token => ({
             address: token.contractAddress,
+            name: token.name || 'Unknown',
+            chain: 'ethereum',
             amount: token.balance,
             usdPrice: typeof token.price === 'number' ? token.price.toFixed(6) : 'Unknown',
             usdValue: typeof token.usdValue === 'number' ? token.usdValue.toFixed(2) : 'Unknown'
@@ -210,6 +227,8 @@ export const getStoredEthereumTokens = async (req: Request, res: Response) => {
         // Format the response
         const formattedTokens = storedTokens.map(token => ({
             address: token.mint,
+            name: token.name || 'Unknown',
+            chain: 'ethereum',
             amount: token.amount,
             usdPrice: token.price?.toFixed(6) || 'Unknown',
             usdValue: token.value?.toFixed(2) || 'Unknown',

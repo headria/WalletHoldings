@@ -29,6 +29,7 @@ interface TokenData {
     decimals: number;
     usdValue?: number;
     price?: number;
+    name?: string;
 }
 
 interface DexScreenerResponse {
@@ -38,19 +39,22 @@ interface DexScreenerResponse {
         baseToken: {
             address: string;
             symbol: string;
+            name: string;
         };
         priceUsd: string;
     }[];
 }
 
-async function getTokenPriceWithCache(mintAddress: string): Promise<number | null> {
+async function getTokenPriceWithCache(mintAddress: string): Promise<{ price: number | null, name?: string }> {
     try {
         // Check Redis cache first
         const cacheKey = `token:price:solana:${mintAddress}`;
+        const nameKey = `token:name:solana:${mintAddress}`;
         const cachedPrice = await redisService.get(cacheKey);
+        const cachedName = await redisService.get(nameKey);
 
-        if (cachedPrice) {
-            return Number(cachedPrice);
+        if (cachedPrice && cachedName) {
+            return { price: Number(cachedPrice), name: cachedName };
         }
 
         // If not in cache, fetch from API
@@ -66,20 +70,22 @@ async function getTokenPriceWithCache(mintAddress: string): Promise<number | nul
 
             if (pair && pair.priceUsd) {
                 const price = Number(pair.priceUsd);
+                const name = pair.baseToken.name;
                 if (!isNaN(price) && price > 0) {
                     // Cache the price
                     await redisService.set(cacheKey, price.toString(), PRICE_CACHE_DURATION);
-                    console.log(`Cached price for ${mintAddress}: $${price}`);
-                    return price;
+                    await redisService.set(nameKey, name, PRICE_CACHE_DURATION);
+                    console.log(`Cached price and name for ${mintAddress}: $${price}, ${name}`);
+                    return { price, name };
                 }
             }
         }
 
         console.log(`No valid price found for token ${mintAddress}`);
-        return null;
+        return { price: null };
     } catch (error) {
         console.error(`Error fetching price for ${mintAddress}:`, error);
-        return null;
+        return { price: null };
     }
 }
 
@@ -120,9 +126,10 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
         // Fetch prices using cache
         let totalUsdValue = 0;
         await Promise.all(tokens.map(async (token) => {
-            const price = await getTokenPriceWithCache(token.mint);
+            const { price, name } = await getTokenPriceWithCache(token.mint);
             if (price) {
                 token.price = price;
+                token.name = name;
                 token.usdValue = token.amount * price;
                 totalUsdValue += token.usdValue;
             }
@@ -157,6 +164,8 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
             data: {
                 found: tokens.map(t => ({
                     mint: t.mint,
+                    name: t.name || 'Unknown',
+                    chain: 'solana',
                     usdPrice: t.price?.toFixed(6) || 'Unknown',
                     usdValue: (t.amount * (t.price || 0)).toFixed(2) || 'Unknown',
                     tokenAmount: t.amount.toFixed(2)
@@ -208,6 +217,8 @@ export const getStoredSolanaTokens = async (req: Request, res: Response) => {
         // Format the response
         const formattedTokens = storedTokens.map(token => ({
             mint: token.mint,
+            name: token.name || 'Unknown',
+            chain: 'solana',
             amount: token.amount,
             usdPrice: token.price?.toFixed(6) || 'Unknown',
             usdValue: token.value?.toFixed(2) || 'Unknown',

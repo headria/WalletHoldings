@@ -16,15 +16,19 @@ export interface TokenInfo {
     decimals: number;
     usdValue?: number;
     price?: number;
+    name?: string;
 }
 
 // Update price API for Base tokens
-async function getTokenPrice(contractAddress: string): Promise<number | null> {
+async function getTokenPrice(contractAddress: string): Promise<{ price: number | null, name?: string }> {
     try {
-        const cachedPrice = await redisService.get(`base:price:${contractAddress}`);
+        const cacheKey = `base:price:${contractAddress}`;
+        const nameKey = `base:name:${contractAddress}`;
+        const cachedPrice = await redisService.get(cacheKey);
+        const cachedName = await redisService.get(nameKey);
 
-        if (cachedPrice) {
-            return parseFloat(cachedPrice);
+        if (cachedPrice && cachedName) {
+            return { price: parseFloat(cachedPrice), name: cachedName };
         }
 
         // Try CoinGecko first
@@ -34,8 +38,8 @@ async function getTokenPrice(contractAddress: string): Promise<number | null> {
             );
             if (response.data[contractAddress.toLowerCase()]?.usd) {
                 const price = response.data[contractAddress.toLowerCase()].usd;
-                await redisService.set(`base:price:${contractAddress}`, price.toString(), 300);
-                return price;
+                await redisService.set(cacheKey, price.toString(), 300);
+                return { price, name: undefined };
             }
         } catch (error) {
             console.log('CoinGecko fallback failed, trying DEXScreener...');
@@ -45,16 +49,22 @@ async function getTokenPrice(contractAddress: string): Promise<number | null> {
         const response = await axios.get(
             `https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`
         );
-        const price = response.data?.pairs?.[0]?.priceUsd || null;
 
-        if (price) {
-            await redisService.set(`base:price:${contractAddress}`, price.toString(), 300);
+        if (response.data?.pairs?.[0]) {
+            const price = response.data.pairs[0].priceUsd;
+            const name = response.data.pairs[0].baseToken.name;
+
+            if (price) {
+                await redisService.set(cacheKey, price.toString(), 300);
+                await redisService.set(nameKey, name, 300);
+                return { price, name };
+            }
         }
 
-        return price;
+        return { price: null };
     } catch (error) {
         console.error(`Error fetching price for ${contractAddress}:`, error);
-        return null;
+        return { price: null };
     }
 }
 
@@ -141,11 +151,15 @@ export async function getAllBaseTokens(walletAddress: string): Promise<TokenInfo
                             decimals: Number(decimals)
                         };
 
-                        const price = await getTokenPrice(contractAddress);
+                        const { price, name } = await getTokenPrice(contractAddress);
                         if (price !== null) {
                             tokenInfo.price = price;
                             tokenInfo.usdValue = formattedBalance * price;
                             totalPortfolioValue += tokenInfo.usdValue;
+                        }
+
+                        if (name) {
+                            tokenInfo.name = name;
                         }
 
                         tokens.push(tokenInfo);
@@ -166,7 +180,7 @@ export async function getAllBaseTokens(walletAddress: string): Promise<TokenInfo
 
         if (formattedEthBalance > 0) {
             console.log(`Found: ETH (Native) - Balance: ${formattedEthBalance}`);
-            const ethPrice = await getTokenPrice('ETH');
+            const { price, name } = await getTokenPrice('ETH');
             const tokenInfo: TokenInfo = {
                 contractAddress: 'ETH',
                 symbol: 'ETH',
@@ -174,10 +188,14 @@ export async function getAllBaseTokens(walletAddress: string): Promise<TokenInfo
                 decimals: 18
             };
 
-            if (ethPrice !== null) {
-                tokenInfo.price = ethPrice;
-                tokenInfo.usdValue = formattedEthBalance * ethPrice;
+            if (price !== null) {
+                tokenInfo.price = price;
+                tokenInfo.usdValue = formattedEthBalance * price;
                 totalPortfolioValue += tokenInfo.usdValue;
+            }
+
+            if (name) {
+                tokenInfo.name = name;
             }
 
             tokens.push(tokenInfo);

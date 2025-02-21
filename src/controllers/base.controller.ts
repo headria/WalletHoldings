@@ -8,6 +8,7 @@ interface BaseToken {
     price?: number;
     usdValue?: number;
     symbol: string;
+    name?: string;
 }
 
 export const getAllBaseTokens = async (req: Request, res: Response) => {
@@ -54,6 +55,7 @@ export const getAllBaseTokens = async (req: Request, res: Response) => {
                             amount: token.balance,
                             price: token.price || 0,
                             value: token.usdValue || 0,
+                            name: token.name || token.symbol || 'Unknown',
                             lastUpdated: new Date()
                         }
                     },
@@ -74,6 +76,8 @@ export const getAllBaseTokens = async (req: Request, res: Response) => {
         // Format response
         const formattedTokens = tokens.map(token => ({
             address: token.contractAddress,
+            name: token.name || token.symbol || 'Unknown',
+            chain: 'base',
             amount: token.balance,
             usdPrice: typeof token.price === 'number' ? token.price.toFixed(6) : 'Unknown',
             usdValue: typeof token.usdValue === 'number' ? token.usdValue.toFixed(2) : 'Unknown'
@@ -129,10 +133,20 @@ export const getStoredBaseTokens = async (req: Request, res: Response) => {
 
         const totalValue = storedTokens.reduce((sum, token) => sum + (token.value || 0), 0);
 
+        const formattedTokens = storedTokens.map(token => ({
+            address: token.mint,
+            name: token.name || 'Unknown',
+            chain: 'base',
+            amount: token.amount,
+            usdPrice: token.price?.toFixed(6) || 'Unknown',
+            usdValue: token.value?.toFixed(2) || 'Unknown',
+            lastUpdated: token.lastUpdated
+        }));
+
         res.json({
             success: true,
             data: {
-                tokens: storedTokens,
+                tokens: formattedTokens,
                 totalValue: totalValue,
                 lastUpdated: Math.max(...storedTokens.map(t => t.lastUpdated.getTime()))
             }

@@ -95,12 +95,11 @@ async function batchProcessTokens(tokens: string[], provider: ethers.Provider, w
 }
 
 export interface TokenInfo {
-    contractAddress: string;  // This is what we get from the blockchain
-    symbol: string;
+    contractAddress: string;
     balance: number;
-    decimals: number;
-    usdValue?: number;
     price?: number;
+    usdValue?: number;
+    name?: string;
 }
 
 export async function getAllEthereumTokens(walletAddress: string): Promise<TokenInfo[]> {
