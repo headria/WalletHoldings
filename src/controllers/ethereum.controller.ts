@@ -113,13 +113,13 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
         const tokens = await getEthTokens(walletAddress);
 
         // Filter out ETH before processing
-        const nonEthTokens = tokens.filter(token => 
+        const erc20Tokens = tokens.filter(token => 
             token.contractAddress && 
             token.contractAddress.toLowerCase() !== ETH_ADDRESS
         );
 
         // Update prices using DexScreener
-        await Promise.all(nonEthTokens.map(async (token) => {
+        await Promise.all(erc20Tokens.map(async (token) => {
             const { price, name } = await getTokenPrice(token.contractAddress);
             if (price !== null) {
                 token.price = price;
@@ -128,8 +128,8 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
             }
         }));
 
-        if (nonEthTokens.length > 0) {
-            const bulkOps = nonEthTokens.map(token => ({
+        if (erc20Tokens.length > 0) {
+            const bulkOps = erc20Tokens.map(token => ({
                 updateOne: {
                     filter: {
                         chain: 'ethereum',
@@ -152,7 +152,7 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
         }
 
         // If no tokens found
-        if (!nonEthTokens || nonEthTokens.length === 0) {
+        if (!erc20Tokens || erc20Tokens.length === 0) {
             return res.json({
                 success: false,
                 data: {
@@ -169,7 +169,7 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
         }
 
         // Format response tokens
-        const formattedTokens = nonEthTokens.map(token => ({
+        const formattedTokens = erc20Tokens.map(token => ({
             address: token.contractAddress,
             name: token.name || 'Unknown',
             chain: 'ethereum',
@@ -179,17 +179,17 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
         }));
 
         // Calculate total USD value
-        const totalUsdValue = nonEthTokens.reduce((sum, token) => sum + (token.usdValue || 0), 0);
+        const totalUsdValue = erc20Tokens.reduce((sum, token) => sum + (token.usdValue || 0), 0);
 
         res.json({
             success: true,
             data: {
                 found: formattedTokens,
                 notFound: ETH_TOKENS_TO_CHECK.filter(addr =>
-                    !nonEthTokens.some(t => t.contractAddress === addr)
+                    !erc20Tokens.some(t => t.contractAddress === addr)
                 ),
                 summary: {
-                    totalFound: nonEthTokens.length,
+                    totalFound: erc20Tokens.length,
                     totalChecked: ETH_TOKENS_TO_CHECK.length,
                     totalUsdValue: totalUsdValue.toFixed(2)
                 }
