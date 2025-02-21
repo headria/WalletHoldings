@@ -54,6 +54,9 @@ const ETH_TOKENS_TO_CHECK = [
     '0xEbcD1Cc56Db8ce89B4A83C037103c870998034C7',
 ];
 
+// Add this constant at the top with other constants
+const ETH_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee".toLowerCase();
+
 async function getTokenPrice(tokenAddress: string): Promise<{ price: number | null, name?: string }> {
     try {
         // Check cache first
@@ -109,8 +112,14 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
 
         const tokens = await getEthTokens(walletAddress);
 
+        // Filter out ETH before processing
+        const nonEthTokens = tokens.filter(token => 
+            token.contractAddress && 
+            token.contractAddress.toLowerCase() !== ETH_ADDRESS
+        );
+
         // Update prices using DexScreener
-        await Promise.all(tokens.map(async (token) => {
+        await Promise.all(nonEthTokens.map(async (token) => {
             const { price, name } = await getTokenPrice(token.contractAddress);
             if (price !== null) {
                 token.price = price;
@@ -119,8 +128,8 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
             }
         }));
 
-        if (tokens.length > 0) {
-            const bulkOps = tokens.map(token => ({
+        if (nonEthTokens.length > 0) {
+            const bulkOps = nonEthTokens.map(token => ({
                 updateOne: {
                     filter: {
                         chain: 'ethereum',
@@ -143,7 +152,7 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
         }
 
         // If no tokens found
-        if (!tokens || tokens.length === 0) {
+        if (!nonEthTokens || nonEthTokens.length === 0) {
             return res.json({
                 success: false,
                 data: {
@@ -160,7 +169,7 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
         }
 
         // Format response tokens
-        const formattedTokens = tokens.map(token => ({
+        const formattedTokens = nonEthTokens.map(token => ({
             address: token.contractAddress,
             name: token.name || 'Unknown',
             chain: 'ethereum',
@@ -170,17 +179,17 @@ export const getAllEthereumTokens = async (req: Request, res: Response) => {
         }));
 
         // Calculate total USD value
-        const totalUsdValue = tokens.reduce((sum, token) => sum + (token.usdValue || 0), 0);
+        const totalUsdValue = nonEthTokens.reduce((sum, token) => sum + (token.usdValue || 0), 0);
 
         res.json({
             success: true,
             data: {
                 found: formattedTokens,
                 notFound: ETH_TOKENS_TO_CHECK.filter(addr =>
-                    !tokens.some(t => t.contractAddress === addr)
+                    !nonEthTokens.some(t => t.contractAddress === addr)
                 ),
                 summary: {
-                    totalFound: tokens.length,
+                    totalFound: nonEthTokens.length,
                     totalChecked: ETH_TOKENS_TO_CHECK.length,
                     totalUsdValue: totalUsdValue.toFixed(2)
                 }
