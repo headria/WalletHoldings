@@ -75,6 +75,7 @@ class TokenService {
     private async fetchDexScreenerData(chainId: string): Promise<TokenInfo[]> {
         try {
             const tokensToCheck = TOKENS_MAP[chainId as keyof typeof TOKENS_MAP];
+            const tokensSet = new Set(tokensToCheck.map(t => t.toLowerCase()));
             console.log(`Fetching data for ${chainId}, total tokens to check: ${tokensToCheck.length}`);
             
             const tokenMap = new Map<string, TokenInfo>(); // Use map for uniqueness
@@ -84,11 +85,14 @@ class TokenService {
             const cachedData = await this.getCachedTokens(chainId);
             if (cachedData.length > 0) {
                 console.log(`Using cached data for ${chainId}`);
-                // Ensure cached data has no duplicates
+                // Ensure cached data has no duplicates and is in our tokens list
                 cachedData.forEach(token => {
-                    const key = `${token.chainId}:${token.address.toLowerCase()}`;
-                    if (!tokenMap.has(key)) {
-                        tokenMap.set(key, token);
+                    const tokenLower = token.address.toLowerCase();
+                    if (tokensSet.has(tokenLower)) {
+                        const key = `${token.chainId}:${tokenLower}`;
+                        if (!tokenMap.has(key)) {
+                            tokenMap.set(key, token);
+                        }
                     }
                 });
                 return Array.from(tokenMap.values());
@@ -116,20 +120,22 @@ class TokenService {
                         
                         if (response.data.pairs?.[0]) {
                             const pair = response.data.pairs[0];
-                            const tokenInfo = {
-                                name: pair.baseToken.name || 'Unknown',
-                                symbol: pair.baseToken.symbol || 'UNKNOWN',
-                                price: parseFloat(pair.priceUsd) || 0,
-                                chainId: chainId,
-                                address: tokenLower
-                            };
-                            
-                            const key = `${chainId}:${tokenLower}`;
-                            if (!tokenMap.has(key)) {
-                                tokenMap.set(key, tokenInfo);
-                                processedTokens.add(tokenLower);
-                                await this.cacheToken(chainId, tokenLower, tokenInfo);
-                                console.log(`Added ${pair.baseToken.symbol} with price $${pair.priceUsd}`);
+                            if (tokensSet.has(tokenLower)) {
+                                const tokenInfo = {
+                                    name: pair.baseToken.name || 'Unknown',
+                                    symbol: pair.baseToken.symbol || 'UNKNOWN',
+                                    price: parseFloat(pair.priceUsd) || 0,
+                                    chainId: chainId,
+                                    address: tokenLower
+                                };
+                                
+                                const key = `${chainId}:${tokenLower}`;
+                                if (!tokenMap.has(key)) {
+                                    tokenMap.set(key, tokenInfo);
+                                    processedTokens.add(tokenLower);
+                                    await this.cacheToken(chainId, tokenLower, tokenInfo);
+                                    console.log(`Added ${pair.baseToken.symbol} with price $${pair.priceUsd}`);
+                                }
                             }
                         }
                         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -169,7 +175,10 @@ class TokenService {
                         if (response.data.pairs?.length > 0) {
                             for (const pair of response.data.pairs) {
                                 const address = pair.baseToken.address.toLowerCase();
-                                if (!processedTokens.has(address) && pair.baseToken && pair.priceUsd) {
+                                if (!processedTokens.has(address) && 
+                                    pair.baseToken && 
+                                    pair.priceUsd && 
+                                    tokensSet.has(address)) {
                                     const tokenInfo = {
                                         name: pair.baseToken.name || 'Unknown',
                                         symbol: pair.baseToken.symbol || 'UNKNOWN',
