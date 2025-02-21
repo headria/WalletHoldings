@@ -12,7 +12,9 @@ interface BscToken {
 
 export const BSC_TOKENS_TO_CHECK = [
     "0x2A3350e8dAc29265c2b8Ded3789A27A702B0af2b",
-    "0xf2c88757f8d03634671208935974b60a2a28bdb3"
+    "0xf2c88757f8d03634671208935974b60a2a28bdb3",
+    '0x5fd12bbb709a59c9f3bf9c690bff75edc6c4dcfd',
+    '0x997a58129890bbda032231a52ed1ddc845fc18e1'
 ];
 
 const BSC_RPC_URL = 'https://bsc-dataseed1.binance.org';

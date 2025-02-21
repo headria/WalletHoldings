@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { redisService } from './redis.service';
-import { BSC_TOKENS_TO_CHECK } from '../binance';
 
 interface TokenInfo {
     name: string;
@@ -57,6 +56,13 @@ const ETH_TOKENS_TO_CHECK = [
     '0xEbcD1Cc56Db8ce89B4A83C037103c870998034C7',
 ];
 
+const BSC_TOKENS_TO_CHECK = [
+    "0x2A3350e8dAc29265c2b8Ded3789A27A702B0af2b",
+    "0xf2c88757f8d03634671208935974b60a2a28bdb3",
+    '0x5fd12bbb709a59c9f3bf9c690bff75edc6c4dcfd',
+    '0x997a58129890bbda032231a52ed1ddc845fc18e1'
+];
+
 const TOKENS_MAP = {
     'solana': SOLANA_TOKENS_TO_CHECK,
     'ethereum': ETH_TOKENS_TO_CHECK,
@@ -77,10 +83,10 @@ class TokenService {
             const tokensToCheck = TOKENS_MAP[chainId as keyof typeof TOKENS_MAP];
             const tokensSet = new Set(tokensToCheck.map(t => t.toLowerCase()));
             console.log(`Fetching data for ${chainId}, total tokens to check: ${tokensToCheck.length}`);
-            
+
             const tokenMap = new Map<string, TokenInfo>(); // Use map for uniqueness
             const processedTokens = new Set<string>(); // Track processed tokens
-            
+
             // Try to get cached data first
             const cachedData = await this.getCachedTokens(chainId);
             if (cachedData.length > 0) {
@@ -117,7 +123,7 @@ class TokenService {
                         console.log(`Fetching Solana token: ${token}`);
                         const url = `https://api.dexscreener.com/latest/dex/tokens/${token}`;
                         const response = await axios.get(url);
-                        
+
                         if (response.data.pairs?.[0]) {
                             const pair = response.data.pairs[0];
                             if (tokensSet.has(tokenLower)) {
@@ -128,7 +134,7 @@ class TokenService {
                                     chainId: chainId,
                                     address: tokenLower
                                 };
-                                
+
                                 const key = `${chainId}:${tokenLower}`;
                                 if (!tokenMap.has(key)) {
                                     tokenMap.set(key, tokenInfo);
@@ -146,10 +152,10 @@ class TokenService {
             } else {
                 const batchSize = 3;
                 const uniqueTokens = [...new Set(tokensToCheck.map(t => t.toLowerCase()))];
-                
+
                 for (let i = 0; i < uniqueTokens.length; i += batchSize) {
                     const batchTokens = uniqueTokens.slice(i, i + batchSize);
-                    
+
                     // Check cache for each token in batch
                     const uncachedTokens = [];
                     for (const token of batchTokens) {
@@ -171,13 +177,13 @@ class TokenService {
                         console.log(`Fetching ${chainId} batch:`, uncachedTokens);
                         const url = `https://api.dexscreener.com/latest/dex/tokens/${uncachedTokens.join(',')}`;
                         const response = await axios.get(url);
-                        
+
                         if (response.data.pairs?.length > 0) {
                             for (const pair of response.data.pairs) {
                                 const address = pair.baseToken.address.toLowerCase();
-                                if (!processedTokens.has(address) && 
-                                    pair.baseToken && 
-                                    pair.priceUsd && 
+                                if (!processedTokens.has(address) &&
+                                    pair.baseToken &&
+                                    pair.priceUsd &&
                                     tokensSet.has(address)) {
                                     const tokenInfo = {
                                         name: pair.baseToken.name || 'Unknown',
@@ -186,7 +192,7 @@ class TokenService {
                                         chainId: chainId,
                                         address: address
                                     };
-                                    
+
                                     const key = `${chainId}:${address}`;
                                     if (!tokenMap.has(key)) {
                                         tokenMap.set(key, tokenInfo);
@@ -205,7 +211,7 @@ class TokenService {
             }
 
             const uniqueTokens = Array.from(tokenMap.values());
-            
+
             // Cache the full result
             if (uniqueTokens.length > 0) {
                 await this.cacheTokens(chainId, uniqueTokens);
@@ -259,7 +265,7 @@ class TokenService {
 
             const uniqueTokens = Array.from(tokenMap.values());
             console.log(`Total unique tokens fetched: ${uniqueTokens.length}`);
-            
+
             // Log breakdown by chain
             chains.forEach(chain => {
                 const chainTokens = uniqueTokens.filter(token => token.chainId === chain);
