@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { redisService } from './redis.service';
+import { BSC_TOKENS_TO_CHECK } from '../binance';
 
 interface TokenInfo {
     name: string;
@@ -59,7 +60,8 @@ const ETH_TOKENS_TO_CHECK = [
 const TOKENS_MAP = {
     'solana': SOLANA_TOKENS_TO_CHECK,
     'ethereum': ETH_TOKENS_TO_CHECK,
-    'base': BASE_TOKENS_TO_CHECK
+    'base': BASE_TOKENS_TO_CHECK,
+    'bsc': BSC_TOKENS_TO_CHECK
 };
 
 class TokenService {
@@ -231,7 +233,7 @@ class TokenService {
 
     async getAllTokens(): Promise<TokenInfo[]> {
         try {
-            const chains = ['solana', 'ethereum', 'base'];
+            const chains = ['solana', 'ethereum', 'base', 'bsc'];
             const tokenMap = new Map<string, TokenInfo>(); // Use map to ensure uniqueness
 
             await Promise.all(chains.map(async (chain) => {
