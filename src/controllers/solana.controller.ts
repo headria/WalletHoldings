@@ -136,27 +136,35 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
         }));
 
         // Save to database
-        if (tokens.length > 0) {
-            const bulkOps = tokens.map(token => ({
-                updateOne: {
-                    filter: {
-                        chain: 'solana',
-                        mint: token.mint,
-                        wallet: walletAddress
-                    },
-                    update: {
-                        $set: {
-                            amount: token.amount,
-                            price: token.price || 0,
-                            value: token.usdValue || 0,
-                            lastUpdated: new Date()
-                        }
-                    },
-                    upsert: true
-                }
-            }));
+        try {
+            if (tokens.length > 0) {
+                const bulkOps = tokens.map(token => ({
+                    updateOne: {
+                        filter: {
+                            chain: 'solana',
+                            mint: token.mint,
+                            wallet: walletAddress
+                        },
+                        update: {
+                            $set: {
+                                amount: token.amount,
+                                price: token.price || 0,
+                                value: token.usdValue || 0,
+                                name: token.name || 'Unknown',
+                                lastUpdated: new Date()
+                            }
+                        },
+                        upsert: true
+                    }
+                }));
 
-            await Token.bulkWrite(bulkOps);
+                await Token.bulkWrite(bulkOps).catch(error => {
+                    console.error('Database bulk write error:', error);
+                    throw new Error('Failed to store token data');
+                });
+            }
+        } catch (error) {
+            // Handle error appropriately
         }
 
         res.json({
