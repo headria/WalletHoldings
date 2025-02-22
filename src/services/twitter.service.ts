@@ -51,51 +51,58 @@ export async function hasUserRetweeted(
         // Process each entry to find tweets
         const tweets = entries
             .filter((entry: any) => {
-                // Get tweets from conversation modules
+                // Check for tweets in both conversation and timeline modules
                 if (entry?.content?.itemContent?.tweetResult?.result) {
                     return true;
                 }
-                // Get tweets from timeline items
+                // Check for tweets in timeline items
                 if (entry?.content?.content?.tweetResult?.result) {
                     return true;
+                }
+                // Check for tweets in TimelineTimelineModule items
+                if (entry?.content?.items) {
+                    return entry.content.items.some((item: any) =>
+                        item?.item?.content?.tweetResult?.result
+                    );
                 }
                 return false;
             })
-            .map((entry: any) => {
+            .flatMap((entry: any) => {
                 // Extract tweet from conversation modules
                 if (entry?.content?.itemContent?.tweetResult?.result) {
-                    return entry.content.itemContent.tweetResult.result;
+                    return [entry.content.itemContent.tweetResult.result];
                 }
                 // Extract tweet from timeline items
                 if (entry?.content?.content?.tweetResult?.result) {
-                    return entry.content.content.tweetResult.result;
+                    return [entry.content.content.tweetResult.result];
                 }
-                return null;
-            })
-            .filter(Boolean);
+                // Extract tweets from TimelineTimelineModule items
+                if (entry?.content?.items) {
+                    return entry.content.items
+                        .map((item: any) => item?.item?.content?.tweetResult?.result)
+                        .filter(Boolean);
+                }
+                return [];
+            });
 
         console.log(`Found ${tweets.length} tweets to check`);
 
         // Check for retweets, quotes, or replies to the target tweet
         const hasRetweeted = tweets.some((tweet: any) => {
-            // Check if this is a retweet and get the original tweet ID
-            const retweetedStatusId = tweet.legacy?.retweeted_status_result?.result?.rest_id ||
+            // Get all possible tweet IDs to check
+            const tweetId = tweet.rest_id;
+            const retweetedStatusId =
+                tweet.legacy?.retweeted_status_result?.result?.rest_id ||
                 tweet.legacy?.retweeted_status?.id_str;
+            const quotedStatusId = tweet.legacy?.quoted_status_id_str;
+            const replyStatusId = tweet.legacy?.in_reply_to_status_id_str;
 
-            const isRetweet = retweetedStatusId === tweetId;
-            const isQuote = tweet.legacy?.quoted_status_id_str === tweetId;
-            const isReply = tweet.legacy?.in_reply_to_status_id_str === tweetId;
-            const isOriginalTweet = tweet.rest_id === tweetId;
+            // Log the IDs we're checking for debugging
 
-            if (isRetweet || isQuote || isReply || isOriginalTweet) {
-                console.log('Match found:', {
-                    type: isRetweet ? 'retweet' : isQuote ? 'quote' : isReply ? 'reply' : 'original',
-                    tweetId: tweet.rest_id,
-                    retweetedId: retweetedStatusId,
-                    userId: tweet.legacy?.user_id_str,
-                    text: tweet.legacy?.full_text
-                });
-            }
+            const isRetweet = retweetedStatusId === tweetId || tweet.legacy?.retweeted;
+            const isQuote = quotedStatusId === tweetId;
+            const isReply = replyStatusId === tweetId;
+            const isOriginalTweet = tweetId === tweetId;
 
             return isRetweet || isQuote || isReply || isOriginalTweet;
         });
