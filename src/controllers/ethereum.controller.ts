@@ -52,6 +52,7 @@ const ETH_TOKENS_TO_CHECK = [
     '0xadf7c35560035944e805d98ff17d58cde2449389',
     "0x7da2641000cbb407c329310c461b2cb9c70c3046",
     '0xEbcD1Cc56Db8ce89B4A83C037103c870998034C7',
+    '0x6d7dad627651bad1f607269b4ad940c5f980087b'
 ];
 
 // Add this constant at the top with other constants
