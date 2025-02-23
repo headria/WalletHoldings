@@ -5,7 +5,7 @@ const options = {
     openapi: '3.0.0',
     info: {
       title: 'Wallet Holdings API',
-      version: '1.0.0',
+      version: '1.2.0',
       description: 'API documentation for Wallet Holdings service',
     },
     servers: [
