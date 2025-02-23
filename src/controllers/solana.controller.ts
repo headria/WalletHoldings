@@ -132,34 +132,36 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
 
         console.log(`Tokens after filtering: ${JSON.stringify(tokens, null, 2)}`);
 
-        // Check if the specific token is missing and attempt to fetch it directly
-        if (!tokens.some(token => token.mint === 'HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC')) {
-            console.log('Specific token not found, attempting direct fetch...');
-            try {
-                const specificTokenResponse = await solanaConnection.getParsedTokenAccountsByOwner(
-                    wallet,
-                    { mint: new PublicKey('HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC') },
-                    'confirmed'
-                );
+        // Check each token in TOKENS_TO_CHECK and attempt to fetch it directly if missing
+        for (const mint of TOKENS_TO_CHECK) {
+            if (!tokens.some(token => token.mint === mint)) {
+                console.log(`Token ${mint} not found, attempting direct fetch...`);
+                try {
+                    const specificTokenResponse = await solanaConnection.getParsedTokenAccountsByOwner(
+                        wallet,
+                        { mint: new PublicKey(mint) },
+                        'confirmed'
+                    );
 
-                if (specificTokenResponse.value.length > 0) {
-                    const account = specificTokenResponse.value[0];
-                    const parsedInfo = account.account.data.parsed.info;
-                    const tokenAmount = parsedInfo.tokenAmount;
-                    console.log(`Direct fetch found token: ${parsedInfo.mint}, Amount: ${tokenAmount.uiAmount}`);
-                    tokens.push({
-                        pubkey: account.pubkey.toString(),
-                        mint: parsedInfo.mint,
-                        amount: Number(tokenAmount.uiAmount),
-                        decimals: tokenAmount.decimals,
-                        usdValue: 0,
-                        price: 0
-                    });
-                } else {
-                    console.log('Direct fetch did not find the token.');
+                    if (specificTokenResponse.value.length > 0) {
+                        const account = specificTokenResponse.value[0];
+                        const parsedInfo = account.account.data.parsed.info;
+                        const tokenAmount = parsedInfo.tokenAmount;
+                        console.log(`Direct fetch found token: ${parsedInfo.mint}, Amount: ${tokenAmount.uiAmount}`);
+                        tokens.push({
+                            pubkey: account.pubkey.toString(),
+                            mint: parsedInfo.mint,
+                            amount: Number(tokenAmount.uiAmount),
+                            decimals: tokenAmount.decimals,
+                            usdValue: 0,
+                            price: 0
+                        });
+                    } else {
+                        console.log(`Direct fetch did not find the token: ${mint}`);
+                    }
+                } catch (error) {
+                    console.error(`Error during direct fetch for token ${mint}:`, error);
                 }
-            } catch (error) {
-                console.error('Error during direct fetch:', error);
             }
         }
 
