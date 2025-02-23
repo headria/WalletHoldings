@@ -95,9 +95,11 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
         const { walletAddress } = req.params;
 
         if (!walletAddress) {
+            console.log('No wallet address provided');
             return res.status(400).json({ error: 'Wallet address is required' });
         }
 
+        console.log(`Fetching tokens for wallet: ${walletAddress}`);
         const solanaConnection = await getWorkingConnection();
         const wallet = new PublicKey(walletAddress);
 
@@ -107,10 +109,14 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
             'confirmed'
         );
 
-        const tokens: TokenData[] = response.value
+        // Log the entire response for debugging
+        console.log('Parsed token accounts response:', JSON.stringify(response, null, 2));
+
+        let tokens: TokenData[] = response.value
             .map((account) => {
                 const parsedInfo = account.account.data.parsed.info;
                 const tokenAmount = parsedInfo.tokenAmount;
+                console.log(`Token found: ${parsedInfo.mint}, Amount: ${tokenAmount.uiAmount}`); // Log each token found
                 return {
                     pubkey: account.pubkey.toString(),
                     mint: parsedInfo.mint,
@@ -121,18 +127,55 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
                 };
             })
             .filter((token) =>
-                token.amount > 0 && TOKENS_TO_CHECK.includes(token.mint)
+                TOKENS_TO_CHECK.includes(token.mint) // Remove amount > 0 condition for logging
             );
+
+        console.log(`Tokens after filtering: ${JSON.stringify(tokens, null, 2)}`);
+
+        // Check if the specific token is missing and attempt to fetch it directly
+        if (!tokens.some(token => token.mint === 'HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC')) {
+            console.log('Specific token not found, attempting direct fetch...');
+            try {
+                const specificTokenResponse = await solanaConnection.getParsedTokenAccountsByOwner(
+                    wallet,
+                    { mint: new PublicKey('HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC') },
+                    'confirmed'
+                );
+
+                if (specificTokenResponse.value.length > 0) {
+                    const account = specificTokenResponse.value[0];
+                    const parsedInfo = account.account.data.parsed.info;
+                    const tokenAmount = parsedInfo.tokenAmount;
+                    console.log(`Direct fetch found token: ${parsedInfo.mint}, Amount: ${tokenAmount.uiAmount}`);
+                    tokens.push({
+                        pubkey: account.pubkey.toString(),
+                        mint: parsedInfo.mint,
+                        amount: Number(tokenAmount.uiAmount),
+                        decimals: tokenAmount.decimals,
+                        usdValue: 0,
+                        price: 0
+                    });
+                } else {
+                    console.log('Direct fetch did not find the token.');
+                }
+            } catch (error) {
+                console.error('Error during direct fetch:', error);
+            }
+        }
 
         // Fetch prices using cache
         let totalUsdValue = 0;
         await Promise.all(tokens.map(async (token) => {
+            console.log(`Checking token: ${token.mint}, Amount: ${token.amount}`); // Log token being checked
             const { price, name } = await getTokenPriceWithCache(token.mint);
             if (price) {
                 token.price = price;
                 token.name = name;
                 token.usdValue = token.amount * price;
                 totalUsdValue += token.usdValue;
+                console.log(`Token ${token.mint} has price: $${price}, USD Value: $${token.usdValue}`); // Log result
+            } else {
+                console.log(`Price not found for token: ${token.mint}`); // Log if price not found
             }
         }));
 
@@ -165,7 +208,7 @@ export const getSpecificTokens = async (req: Request, res: Response) => {
                 });
             }
         } catch (error) {
-            // Handle error appropriately
+            console.error('Error during database operation:', error);
         }
 
         res.json({
