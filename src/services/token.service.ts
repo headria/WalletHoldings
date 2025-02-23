@@ -23,6 +23,7 @@ interface DexScreenerToken {
 }
 
 const SOLANA_TOKENS_TO_CHECK = [
+    '8sn9549p3zn6xpqrqpapn57xzkch6sjxlwuejcg2w4ji',
     'HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC',
     '61V8vBaqAGMpgDQi4JcAwo1dmBGHsyhzodcPqnEVpump',
     'KENJSUYLASHUMfHyy5o4Hp2FdNqZg1AsUPhfH2kYvEP',
