@@ -33,7 +33,7 @@ app.use(express.json({ limit: '10kb' })); // Limit request size
 app.disable('x-powered-by');
 
 // Swagger Documentation
-app.use('/api-docs', [...swaggerUi.serve, swaggerUi.setup(specs)] as unknown as express.RequestHandler[]);
+// app.use('/api-docs', [...swaggerUi.serve, swaggerUi.setup(specs)] as unknown as express.RequestHandler[]);
 
 // Connect to MongoDB
 connectDB();
