@@ -157,9 +157,13 @@ export const validatePresaleWalletAddress = async (req: Request, res: Response) 
             });
         }
 
+        const whitelistEntry = await Whitelist.findOne({ presaleWallet: walletAddress });
+
         res.json({
             success: true,
-            message: 'Wallet address is in the presale list'
+            message: 'Wallet address is in the presale list',
+            hasParticipated: !!whitelistEntry,
+            wallet: whitelistEntry.walletAddress
         });
     } catch (error) {
         console.error('Error validating presale wallet address:', error);
