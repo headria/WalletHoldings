@@ -45,6 +45,15 @@ export const addWalletToWhitelist = async (req: Request, res: Response) => {
             });
         }
 
+        // Check for duplicate presale wallet
+        const existingEntry = await Whitelist.findOne({ presaleWallet: presale });
+        if (existingEntry) {
+            return res.status(400).json({
+                success: false,
+                error: 'Wallet address is already in the whitelist'
+            });
+        }
+
         const whitelistEntry = await Whitelist.findOneAndUpdate(
             { walletAddress },
             { $set: { lastUpdated: new Date(), presaleWallet: presale.toString() } },
