@@ -25,9 +25,9 @@ function determineChainFromAddress(walletAddress: string): string | null {
 
 export const addWalletToWhitelist = async (req: Request, res: Response) => {
     try {
-        const { walletAddress, chain, presale } = req.body;
+        const { walletAddress, presale } = req.body;
 
-        if (!walletAddress || !chain) {
+        if (!walletAddress) {
             return res.status(400).json({
                 success: false,
                 error: 'Wallet address and chain are required'
@@ -47,7 +47,7 @@ export const addWalletToWhitelist = async (req: Request, res: Response) => {
 
         const whitelistEntry = await Whitelist.findOneAndUpdate(
             { walletAddress },
-            { $set: { chain, lastUpdated: new Date(), presaleWallet: presale.toString() } },
+            { $set: { lastUpdated: new Date(), presaleWallet: presale.toString() } },
             { new: true, upsert: true }
         );
 

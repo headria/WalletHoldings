@@ -7,11 +7,6 @@ const whitelistSchema = new mongoose.Schema({
         unique: true,
         index: true
     },
-    chain: {
-        type: String,
-        required: true,
-        enum: ['ethereum', 'solana', 'base', 'bsc']
-    },
     lastUpdated: {
         type: Date,
         default: Date.now
