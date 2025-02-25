@@ -5,6 +5,7 @@ import baseRoutes from './base.routes';
 import walletRoutes from './wallet.routes';
 import tokenRoutes from './token.routes';
 import binanceRoutes from './binance.routes';
+import whitelistRoutes from './whitelist.routes';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.use('/base', baseRoutes);
 router.use('/wallets', walletRoutes);
 router.use('/binance', binanceRoutes);
 router.use('/tokens', tokenRoutes);
-router.use('/wallets', walletRoutes)
+router.use('/wallets', walletRoutes);
+router.use('/whitelist', whitelistRoutes);
 
 module.exports = router; 
