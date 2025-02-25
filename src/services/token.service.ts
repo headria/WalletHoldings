@@ -108,120 +108,74 @@ class TokenService {
                 return Array.from(tokenMap.values());
             }
 
-            if (chainId === 'solana') {
-                for (const token of tokensToCheck) {
-                    const tokenLower = token.toLowerCase();
-                    if (processedTokens.has(tokenLower)) continue;
+            const batchSize = 5;
+            const uniqueTokens = [...new Set(tokensToCheck.map(t => t.toLowerCase()))];
 
-                    try {
-                        const cachedToken = await this.getCachedToken(chainId, tokenLower);
-                        if (cachedToken) {
-                            const key = `${chainId}:${tokenLower}`;
-                            if (!tokenMap.has(key)) {
-                                tokenMap.set(key, cachedToken);
-                                processedTokens.add(tokenLower);
-                            }
-                            continue;
+            for (let i = 0; i < uniqueTokens.length; i += batchSize) {
+                const batchTokens = uniqueTokens.slice(i, i + batchSize);
+                console.log(`Processing batch: ${batchTokens}`);
+
+                // Check cache for each token in batch
+                const uncachedTokens = [];
+                for (const token of batchTokens) {
+                    const cachedToken = await this.getCachedToken(chainId, token);
+                    if (cachedToken) {
+                        const key = `${chainId}:${token}`;
+                        if (!tokenMap.has(key)) {
+                            tokenMap.set(key, cachedToken);
+                            processedTokens.add(token);
                         }
+                    } else {
+                        uncachedTokens.push(token);
+                    }
+                }
 
-                        console.log(`Fetching Solana token: ${token}`);
-                        const url = `https://api.dexscreener.com/latest/dex/tokens/${token}`;
-                        const response = await axios.get(url);
+                if (uncachedTokens.length === 0) continue;
 
-                        if (response.data.pairs?.[0]) {
-                            const pair = response.data.pairs[0];
-                            if (tokensSet.has(tokenLower)) {
+                try {
+                    console.log(`Fetching ${chainId} batch:`, uncachedTokens);
+                    const url = `https://api.dexscreener.com/latest/dex/tokens/${uncachedTokens.join(',')}`;
+                    const response = await axios.get(url);
+
+                    if (response.data.pairs?.length > 0) {
+                        for (const pair of response.data.pairs) {
+                            const address = pair.baseToken.address.toLowerCase();
+                            if (!processedTokens.has(address) &&
+                                pair.baseToken &&
+                                pair.priceUsd &&
+                                tokensSet.has(address)) {
                                 const tokenInfo = {
                                     name: pair.baseToken.name || 'Unknown',
                                     symbol: pair.baseToken.symbol || 'UNKNOWN',
                                     price: parseFloat(pair.priceUsd) || 0,
                                     chainId: chainId,
-                                    address: tokenLower
+                                    address: address
                                 };
 
-                                const key = `${chainId}:${tokenLower}`;
+                                const key = `${chainId}:${address}`;
                                 if (!tokenMap.has(key)) {
                                     tokenMap.set(key, tokenInfo);
-                                    processedTokens.add(tokenLower);
-                                    await this.cacheToken(chainId, tokenLower, tokenInfo);
-                                    console.log(`Added ${pair.baseToken.symbol} with price $${pair.priceUsd}`);
                                 }
+                                processedTokens.add(address);
+                                await this.cacheToken(chainId, address, tokenInfo);
+                                console.log(`Added ${pair.baseToken.symbol} with price $${pair.priceUsd}`);
                             }
                         }
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    } catch (err) {
-                        console.error(`Error fetching Solana token ${token}:`, err);
                     }
-                }
-            } else {
-                const batchSize = 3;
-                const uniqueTokens = [...new Set(tokensToCheck.map(t => t.toLowerCase()))];
-
-                for (let i = 0; i < uniqueTokens.length; i += batchSize) {
-                    const batchTokens = uniqueTokens.slice(i, i + batchSize);
-
-                    // Check cache for each token in batch
-                    const uncachedTokens = [];
-                    for (const token of batchTokens) {
-                        const cachedToken = await this.getCachedToken(chainId, token);
-                        if (cachedToken) {
-                            const key = `${chainId}:${token}`;
-                            if (!tokenMap.has(key)) {
-                                tokenMap.set(key, cachedToken);
-                                processedTokens.add(token);
-                            }
-                        } else {
-                            uncachedTokens.push(token);
-                        }
-                    }
-
-                    if (uncachedTokens.length === 0) continue;
-
-                    try {
-                        console.log(`Fetching ${chainId} batch:`, uncachedTokens);
-                        const url = `https://api.dexscreener.com/latest/dex/tokens/${uncachedTokens.join(',')}`;
-                        const response = await axios.get(url);
-
-                        if (response.data.pairs?.length > 0) {
-                            for (const pair of response.data.pairs) {
-                                const address = pair.baseToken.address.toLowerCase();
-                                if (!processedTokens.has(address) &&
-                                    pair.baseToken &&
-                                    pair.priceUsd &&
-                                    tokensSet.has(address)) {
-                                    const tokenInfo = {
-                                        name: pair.baseToken.name || 'Unknown',
-                                        symbol: pair.baseToken.symbol || 'UNKNOWN',
-                                        price: parseFloat(pair.priceUsd) || 0,
-                                        chainId: chainId,
-                                        address: address
-                                    };
-
-                                    const key = `${chainId}:${address}`;
-                                    if (!tokenMap.has(key)) {
-                                        tokenMap.set(key, tokenInfo);
-                                    }
-                                    processedTokens.add(address);
-                                    await this.cacheToken(chainId, address, tokenInfo);
-                                    console.log(`Added ${pair.baseToken.symbol} with price $${pair.priceUsd}`);
-                                }
-                            }
-                        }
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    } catch (err) {
-                        console.error(`Error fetching ${chainId} batch:`, err);
-                    }
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch (err) {
+                    console.error(`Error fetching ${chainId} batch:`, err);
                 }
             }
 
-            const uniqueTokens = Array.from(tokenMap.values());
+            const finalUniqueTokens = Array.from(tokenMap.values());
 
             // Cache the full result
-            if (uniqueTokens.length > 0) {
-                await this.cacheTokens(chainId, uniqueTokens);
+            if (finalUniqueTokens.length > 0) {
+                await this.cacheTokens(chainId, finalUniqueTokens);
             }
 
-            return uniqueTokens;
+            return finalUniqueTokens;
         } catch (error) {
             console.error(`Error in fetchDexScreenerData for ${chainId}:`, error);
             return [];
