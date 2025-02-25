@@ -159,10 +159,18 @@ export const validatePresaleWalletAddress = async (req: Request, res: Response) 
 
         const whitelistEntry = await Whitelist.findOne({ presaleWallet: walletAddress });
 
+        if (!whitelistEntry) {
+            return res.json({
+                success: true,
+                message: 'Wallet address is in the presale list',
+                hasParticipated: false
+            });
+        }
+
         res.json({
             success: true,
             message: 'Wallet address is in the presale list',
-            hasParticipated: !!whitelistEntry,
+            hasParticipated: true,
             wallet: whitelistEntry.walletAddress
         });
     } catch (error) {
