@@ -2,16 +2,8 @@ import { Whitelist } from '../db/models/whitelist';
 
 // Example list of presale wallet addresses
 const presaleWallets = [
-    '0x48760e6dda33fae87b17bf6a8351c495e6d0f436',
-    '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-    '0x48760e6dda33fae87b17bf6a8251c495e6d0f436',
     '0x72cb3dc95815c67f933e735d54136d191687d8f5',
-    '0x3f74f4cb76d5ad3bec20d9e8e01bf997d68edeb1',
-    '0x4458212a31e0577d0117795bc2907f5d804ecf8e',
-    '0x4458212a31e0577d0117795bc2907f5d804ecf8e',
-    '0x324756e75249ad288d8ff2164cfad291ed5879d7',
-    '0x42c8f0762ec48bf05f4adbdf3cb7ceb64b24ec30',
-    '0x7aa00663b5cb8064aef922bffc73dfae98848fdb',
+    '0x44b6e8afbea51a81f8560eb0e2f5ff03ff12b949',
     // Add more addresses as needed
     '0x45dfbb3e0c91b8ddad6a04bad6250c498c2c8442',
     '0x12d99ae1422f8cd199c1002418e456a7da5e29a8',
