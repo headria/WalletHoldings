@@ -10,6 +10,7 @@ const presaleWallets = [
     '0x49ad790b5ebcd9ce8c713b2e6bfd4d9d1b7d878c',
     '0xe8e207ffca1ffcb280b6e2b87e33bc9daf0b9435',
     '0x4458212a31e0577d0117795bc2907f5d804ecf8e',
+    '0xb762e9f4a39657e2acfad17efb8fe4c4ed699cc4',
     // Add more addresses as needed
     '0xf6d03846d93f7054f3afec012fd43bfaaf3f7019',
     '0xf6d03846d93f7054f3afec012fd43bfaa3f7019',
