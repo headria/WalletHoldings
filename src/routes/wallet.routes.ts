@@ -8,7 +8,7 @@ import {
 const router = Router();
 
 router.post('/:walletAddress', storeWalletAddress);
-router.get('/wallets', getStoredWallets);
+// router.get('/wallets', getStoredWallets);
 router.get('/wallet/:walletAddress', getWalletByAddress);
 
 /**
