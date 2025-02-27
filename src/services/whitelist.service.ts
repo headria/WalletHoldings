@@ -650,7 +650,7 @@ export const getAllWhitelistedWallets = async () => {
                 walletAddress: wallet.walletAddress,
                 tokenAmount
             };
-        }).filter(wallet => wallet.tokenAmount > 0);
+        })
 
         return walletsWithAmounts;
     } catch (error) {
