@@ -10,7 +10,7 @@ const presaleWallets = [
     '0x44b6e8afbea51a81f8560eb0e2f5ff03ff12b949',
     '0x49ad790b5ebcd9ce8c713b2e6bfd4d9d1b7d878c',
     '0x48760e6dda33fae87b17bf6a8351c495e6d0f436',
-    '0x4458212a31e0577d0117795bc2907f5d804ecf8e',
+    '0x0be74772f38cd2b2374f1a644d5e4a264538bdc3',
     // Add more addresses as needed
 
     '0xf6d03846d93f7054f3afec012fd43bfaa3f7019',
@@ -443,7 +443,9 @@ function isValidSolanaAddress(address: string): boolean {
 
 async function getTokenHoldersByMint(tokenMintAddress: string, walletAddresses: string[]): Promise<WalletTokenHolding[]> {
     try {
-        // Validate token mint address first
+        console.log(`Starting token holder check for mint: ${tokenMintAddress}`);
+        console.log(`Total wallets to check: ${walletAddresses.length}`);
+
         if (!isValidSolanaAddress(tokenMintAddress)) {
             throw new Error(`Invalid Solana token mint address: ${tokenMintAddress}`);
         }
@@ -451,7 +453,6 @@ async function getTokenHoldersByMint(tokenMintAddress: string, walletAddresses: 
         const connection = await getWorkingConnection();
         const holdings: WalletTokenHolding[] = [];
 
-        // Filter out invalid addresses first
         const validWallets = walletAddresses.filter(address => {
             const isValid = isValidSolanaAddress(address);
             if (!isValid) {
@@ -460,11 +461,13 @@ async function getTokenHoldersByMint(tokenMintAddress: string, walletAddresses: 
             return isValid;
         });
 
-        // Process wallets in parallel for better performance
-        const walletPromises = validWallets.map(async (walletAddress) => {
-            try {
-                const wallet = new PublicKey(walletAddress);
+        console.log(`Valid wallets to process: ${validWallets.length}`);
 
+        for (const walletAddress of validWallets) {
+            try {
+                console.log(`Checking wallet: ${walletAddress}`);
+                const wallet = new PublicKey(walletAddress);
+                
                 const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
                     wallet,
                     {
@@ -474,11 +477,14 @@ async function getTokenHoldersByMint(tokenMintAddress: string, walletAddresses: 
                     'confirmed'
                 );
 
-                // If token accounts found for this wallet
+                console.log(`Found ${tokenAccounts.value.length} token accounts for wallet ${walletAddress}`);
+
                 if (tokenAccounts.value.length > 0) {
                     const account = tokenAccounts.value[0];
                     const parsedInfo = account.account.data.parsed.info;
                     const tokenAmount = Number(parsedInfo.tokenAmount.uiAmount);
+
+                    console.log(`Wallet ${walletAddress} holds ${tokenAmount} tokens`);
 
                     if (tokenAmount > 0) {
                         holdings.push({
@@ -486,18 +492,23 @@ async function getTokenHoldersByMint(tokenMintAddress: string, walletAddresses: 
                             tokenAmount,
                             tokenName: undefined
                         });
+                        console.log(`Added wallet ${walletAddress} to holdings with ${tokenAmount} tokens`);
                     }
+                } else {
+                    console.log(`No tokens found for wallet ${walletAddress}`);
                 }
             } catch (error) {
                 console.error(`Error checking wallet ${walletAddress}:`, error);
             }
-        });
+        }
 
-        // Wait for all wallet checks to complete
-        await Promise.all(walletPromises);
-
+        console.log(`Found ${holdings.length} wallets with token holdings`);
+        
         // Sort by token amount in descending order
-        return holdings.sort((a, b) => b.tokenAmount - a.tokenAmount);
+        const sortedHoldings = holdings.sort((a, b) => b.tokenAmount - a.tokenAmount);
+        
+        console.log('Final holdings:', JSON.stringify(sortedHoldings, null, 2));
+        return sortedHoldings;
 
     } catch (error) {
         console.error("Error in getTokenHoldersByMint:", error);
