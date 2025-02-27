@@ -658,3 +658,27 @@ export const getAllWhitelistedWallets = async () => {
         throw error;
     }
 };
+
+export const getAllWhitelistedWalletsAll = async () => {
+    try {
+        const whitelistedWallets = await Whitelist.find({})
+            .sort({ lastUpdated: -1 })
+            .lean();
+
+        const walletsWithAmounts = whitelistedWallets.map(wallet => {
+            const presaleWallet = wallet.presaleWallet ? wallet.presaleWallet.toLowerCase() : null;
+            let tokenAmount = presaleWallet ? presaleWalletAmounts.get(presaleWallet) || 0 : 0;
+
+            return {
+                ...wallet,  // Spread all wallet properties
+                tokenAmount,
+                presaleWallet: presaleWallet // Ensure lowercase version is returned
+            };
+        }).filter(wallet => wallet.tokenAmount > 0);
+
+        return walletsWithAmounts;
+    } catch (error) {
+        console.error('Error fetching whitelisted wallets:', error);
+        throw error;
+    }
+};

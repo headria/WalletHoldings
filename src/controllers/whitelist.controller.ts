@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Whitelist } from '../db/models/whitelist';
-import { validatePresaleWallet, getAllWhitelistedWallets as getWhitelistedWallets } from '../services/whitelist.service';
+import { validatePresaleWallet, getAllWhitelistedWallets as getWhitelistedWallets, getAllWhitelistedWalletsAll } from '../services/whitelist.service';
 
 function determineChainFromAddress(walletAddress: string): string | null {
     // Ethereum and Base addresses (both start with 0x)
@@ -194,7 +194,7 @@ export const validatePresaleWalletAddress = async (req: Request, res: Response) 
 export const getAllWhitelistedWallets = async (req: Request, res: Response) => {
     try {
         const whitelistedWallets = await getWhitelistedWallets();
-        
+
         res.json({
             success: true,
             data: {
@@ -209,4 +209,24 @@ export const getAllWhitelistedWallets = async (req: Request, res: Response) => {
             error: error instanceof Error ? error.message : 'Unknown error occurred'
         });
     }
-}; 
+};
+
+export const getAllWhitelistedWalletsWithTokenAmount = async (req: Request, res: Response) => {
+    try {
+        const whitelistedWallets = await getAllWhitelistedWalletsAll();
+
+        res.json({
+            success: true,
+            data: {
+                wallets: whitelistedWallets,
+                total: whitelistedWallets.length
+            }
+        });
+    } catch (error) {
+        console.error('Error getting all whitelisted wallets with token amount:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
+    }
+};

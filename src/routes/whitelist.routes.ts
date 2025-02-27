@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { 
-    addWalletToWhitelist, 
-    getChainFromWalletAddress, 
-    isWalletInWhitelist, 
+import {
+    addWalletToWhitelist,
+    getChainFromWalletAddress,
+    isWalletInWhitelist,
     validatePresaleWalletAddress,
-    getAllWhitelistedWallets 
+    getAllWhitelistedWallets,
+    getAllWhitelistedWalletsWithTokenAmount
 } from '../controllers/whitelist.controller';
 
 const router = Router();
@@ -51,5 +52,6 @@ router.post('/whitelist', addWalletToWhitelist);
 router.get('/chain/:walletAddress', getChainFromWalletAddress);
 router.get('/check/:walletAddress', isWalletInWhitelist);
 router.get('/validate-presale/:walletAddress', validatePresaleWalletAddress);
+router.get('/all-with-token-amount', getAllWhitelistedWalletsWithTokenAmount);
 
 export default router; 
