@@ -4,6 +4,7 @@ import { Whitelist } from '../db/models/whitelist';
 const presaleWallets = [
     '0x72cb3dc95815c67f933e735d54136d191687d8f5',
     '0x44b6e8afbea51a81f8560eb0e2f5ff03ff12b949',
+    '0x49ad790b5ebcd9ce8c713b2e6bfd4d9d1b7d878c',
     // Add more addresses as needed
     '0x45dfbb3e0c91b8ddad6a04bad6250c498c2c8442',
     '0x12d99ae1422f8cd199c1002418e456a7da5e29a8',
@@ -156,7 +157,7 @@ export const addWallet = async (walletAddress: string, chain: string, isPresale:
 
 export const validatePresaleWallet = (walletAddress: string): boolean => {
     console.log('Validating wallet address:', walletAddress);
-    const isValid = presaleWallets.includes(walletAddress);
+    const isValid = presaleWallets.includes(walletAddress.toLowerCase());
     console.log('Is valid presale wallet:', isValid);
     return isValid;
 }; 
