@@ -674,7 +674,7 @@ export const getAllWhitelistedWalletsAll = async () => {
                 tokenAmount,
                 presaleWallet: presaleWallet // Ensure lowercase version is returned
             };
-        }).filter(wallet => wallet.tokenAmount > 0);
+        })
 
         return walletsWithAmounts;
     } catch (error) {
