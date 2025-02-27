@@ -15,11 +15,11 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet()); // Adds various HTTP headers for security
 
 // Rate limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
+// const limiter = rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15 minutes
+//     max: 100 // limit each IP to 100 requests per windowMs
+// });
+// app.use(limiter);
 
 // Middleware
 app.use(cors({
