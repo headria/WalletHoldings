@@ -1,5 +1,8 @@
 import { Whitelist } from '../db/models/whitelist';
 import { ethers } from 'ethers';
+import { Connection, PublicKey } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getWorkingConnection } from '../utils/solana';
 
 // Example list of presale wallet addresses
 const presaleWallets = [
@@ -415,4 +418,104 @@ export const validatePresaleWallet = (walletAddress: string): boolean => {
     const isValid = presaleWallets.includes(walletAddress.toLowerCase());
     console.log('Is valid presale wallet:', isValid);
     return isValid;
-}; 
+};
+
+interface WalletTokenHolding {
+    walletAddress: string;
+    tokenAmount: number;
+    tokenName?: string;
+}
+
+// Helper function to validate Solana address
+function isValidSolanaAddress(address: string): boolean {
+    try {
+        // Check if the string matches Solana address pattern (base58, 32-44 chars)
+        if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+            return false;
+        }
+        // Try to create a PublicKey (this will validate the address)
+        new PublicKey(address);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function getTokenHoldersByMint(tokenMintAddress: string, walletAddresses: string[]): Promise<WalletTokenHolding[]> {
+    try {
+        // Validate token mint address first
+        if (!isValidSolanaAddress(tokenMintAddress)) {
+            throw new Error(`Invalid Solana token mint address: ${tokenMintAddress}`);
+        }
+
+        const connection = await getWorkingConnection();
+        const holdings: WalletTokenHolding[] = [];
+
+        // Filter out invalid addresses first
+        const validWallets = walletAddresses.filter(address => {
+            const isValid = isValidSolanaAddress(address);
+            if (!isValid) {
+                console.warn(`Skipping invalid Solana address: ${address}`);
+            }
+            return isValid;
+        });
+
+        // Process wallets in parallel for better performance
+        const walletPromises = validWallets.map(async (walletAddress) => {
+            try {
+                const wallet = new PublicKey(walletAddress);
+
+                const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+                    wallet,
+                    {
+                        mint: new PublicKey(tokenMintAddress),
+                        programId: TOKEN_PROGRAM_ID,
+                    },
+                    'confirmed'
+                );
+
+                // If token accounts found for this wallet
+                if (tokenAccounts.value.length > 0) {
+                    const account = tokenAccounts.value[0];
+                    const parsedInfo = account.account.data.parsed.info;
+                    const tokenAmount = Number(parsedInfo.tokenAmount.uiAmount);
+
+                    if (tokenAmount > 0) {
+                        holdings.push({
+                            walletAddress,
+                            tokenAmount,
+                            tokenName: undefined
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error(`Error checking wallet ${walletAddress}:`, error);
+            }
+        });
+
+        // Wait for all wallet checks to complete
+        await Promise.all(walletPromises);
+
+        // Sort by token amount in descending order
+        return holdings.sort((a, b) => b.tokenAmount - a.tokenAmount);
+
+    } catch (error) {
+        console.error("Error in getTokenHoldersByMint:", error);
+        throw error;
+    }
+}
+
+// Example usage
+const walletAddresses = [
+    "9JcJD8un5QMaDkwuEMzH56gtr3pkvqc3ftWPqwHHU9vR",
+    "FvyKbbNQuD6iH1ZM23gFX3D18DoHxR9CMUonNcY8v5ur",
+];
+
+const tokenMint = "HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC";
+
+try {
+    const holders = getTokenHoldersByMint(tokenMint, walletAddresses);
+    console.log("Token holders:", holders);
+} catch (error) {
+    console.error("Error:", error);
+} 
