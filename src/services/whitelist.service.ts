@@ -636,7 +636,7 @@ export const getAllWhitelistedWallets = async () => {
         // Add token amounts to whitelisted wallets if they exist in presale list
         const walletsWithAmounts = whitelistedWallets.map(wallet => ({
             ...wallet,
-            tokenAmount: presaleWalletAmounts.get(wallet.walletAddress.toLowerCase()) || 0
+            tokenAmount: presaleWalletAmounts.get(wallet.presaleWalletAddress.toLowerCase()) || 0
         }));
 
         return walletsWithAmounts;
