@@ -5,6 +5,7 @@ import { Token } from '../db/models/token';
 import { getWorkingConnection } from '../utils/solana';
 import { redisService } from '../services/redis.service';
 import axios from 'axios';
+import { getTokenHoldersByMint } from '../services/whitelist.service';
 
 const PRICE_CACHE_DURATION = 300; // 5 minutes in seconds
 
@@ -294,6 +295,47 @@ export const getStoredSolanaTokens = async (req: Request, res: Response) => {
 
     } catch (error) {
         console.error('Error fetching stored tokens:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
+    }
+};
+
+// Import the predefined wallet addresses
+const walletAddresses = [
+    "9JcJD8un5QMaDkwuEMzH56gtr3pkvqc3ftWPqwHHU9vR",
+    "FvyKbbNQuD6iH1ZM23gFX3D18DoHxR9CMUonNcY8v5ur",
+    '8MiwoWeCGhxPgjBqEPif2GTxBK6UeFiX6QypeULnYqA7',
+    'F2isFFcGE57dvdWkdwf6CRk5D4pw5UVDG4d634WpQ4yf',
+    '41bVEdn56nNPqENPx4LewYqiiEW6pGG7yt4aXf1HTA9P'
+];
+
+export const getTokenHolders = async (req: Request, res: Response) => {
+    try {
+        const { tokenMint } = req.params;
+        
+        if (!tokenMint) {
+            return res.status(400).json({
+                success: false,
+                error: 'Token mint address is required'
+            });
+        }
+
+        console.log(`Checking token ${tokenMint} for ${walletAddresses.length} wallets...`);
+        const holders = await getTokenHoldersByMint(tokenMint, walletAddresses);
+        console.log(`Found ${holders.length} holders`);
+
+        res.json({
+            success: true,
+            data: holders.map(holder => ({
+                walletAddress: holder.walletAddress,
+                tokenAmount: holder.tokenAmount
+            }))
+        });
+
+    } catch (error) {
+        console.error('Error in getTokenHolders:', error);
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error occurred'

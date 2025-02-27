@@ -2,7 +2,6 @@ import { Whitelist } from '../db/models/whitelist';
 import { ethers } from 'ethers';
 import { Connection, PublicKey } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { getWorkingConnection } from '../utils/solana';
 
 // Example list of presale wallet addresses
 const presaleWallets = [
@@ -277,133 +276,6 @@ const presaleWallets = [
     '0xab4b8f0b03caf7fb01530dbeba093184e87adbab'
 ];
 
-// Define the ERC20 token ABI to interact with token contracts
-const ERC20_ABI = [
-    "function balanceOf(address owner) view returns (uint256)",
-    "function symbol() view returns (string)",
-    "function name() view returns (string)"
-];
-
-const ETH_RPC_ENDPOINTS = [
-    "https://eth.llamarpc.com",
-    "https://rpc.ankr.com/eth",
-    "https://ethereum.publicnode.com",
-    "https://eth.meowrpc.com"
-];
-
-const BATCH_SIZE = 10; // Reduce batch size
-const DELAY_MS = 2000; // Increase delay to 2 seconds
-
-function delay(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function fetchBalanceWithRetry(tokenContract: ethers.Contract, walletAddress: string, retries = 3) {
-    for (let attempt = 0; attempt < retries; attempt++) {
-        try {
-            const [balance, symbol, name] = await Promise.all([
-                tokenContract.balanceOf(walletAddress),
-                tokenContract.symbol(),
-                tokenContract.name()
-            ]);
-            return { balance, symbol, name };
-        } catch (error) {
-            console.error(`Error fetching balance for wallet ${walletAddress}, attempt ${attempt + 1}:`, error);
-            if (attempt < retries - 1) {
-                await delay(DELAY_MS * (attempt + 1)); // Exponential backoff
-            } else {
-                throw error;
-            }
-        }
-    }
-}
-
-export async function getEthereumTokenBalances(tokenAddress: string) {
-    const results = new Map<string, { walletAddress: string, tokens: number, tokenDetails: { name: string, symbol: string, balance: number } }>();
-
-    if (!ethers.isAddress(tokenAddress)) {
-        console.error(`Invalid token address: ${tokenAddress}`);
-        return [];
-    }
-
-    console.log(`Starting token balance fetch for token: ${tokenAddress}`);
-
-    for (const endpoint of ETH_RPC_ENDPOINTS) {
-        console.log(`Trying endpoint: ${endpoint}`);
-        try {
-            const provider = new ethers.JsonRpcProvider(endpoint, 'homestead');
-            const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-
-            // Process wallets in batches
-            for (let i = 0; i < presaleWallets.length; i += BATCH_SIZE) {
-                const batch = presaleWallets.slice(i, i + BATCH_SIZE);
-                console.log(`Processing batch: ${i / BATCH_SIZE + 1}`);
-
-                const walletPromises = batch.map(async (walletAddress) => {
-                    console.log(`Processing wallet: ${walletAddress}`);
-                    if (!ethers.isAddress(walletAddress)) {
-                        console.error(`Invalid wallet address: ${walletAddress}`);
-                        return;
-                    }
-
-                    try {
-                        console.log(`Fetching balance for wallet: ${walletAddress}`);
-                        const result = await fetchBalanceWithRetry(tokenContract, walletAddress);
-
-                        if (!result) {
-                            console.error(`Failed to fetch balance for wallet ${walletAddress}: result is undefined`);
-                            return;
-                        }
-
-                        const { balance, symbol, name } = result;
-                        const formattedBalance = Number(ethers.formatUnits(balance, 18));
-
-                        console.log(`Fetched balance for ${walletAddress}: ${formattedBalance} ${symbol}`);
-
-                        // Use a Map to prevent duplicates
-                        results.set(walletAddress, {
-                            walletAddress,
-                            tokens: formattedBalance,
-                            tokenDetails: { name, symbol, balance: formattedBalance }
-                        });
-                    } catch (error) {
-                        console.error(`Failed to fetch balance for wallet ${walletAddress} after retries:`, error);
-                    }
-                });
-
-                // Wait for all wallet promises in the batch to resolve
-                await Promise.all(walletPromises);
-
-                // Introduce a delay between batches
-                console.log(`Delaying for ${DELAY_MS}ms before next batch`);
-                await delay(DELAY_MS);
-            }
-
-            // If successful, break out of the loop
-            console.log(`Successfully fetched balances using endpoint: ${endpoint}`);
-            break;
-        } catch (error) {
-            console.error(`Error fetching Ethereum token balances from ${endpoint}:`, error);
-            // Continue to the next endpoint
-        }
-    }
-
-    console.log(`Completed token balance fetch for token: ${tokenAddress}`);
-    // Convert Map values to an array
-    return Array.from(results.values());
-}
-
-function isEthereumAddress(address: string): boolean {
-    return /^0x[a-fA-F0-9]{40}$/.test(address);
-}
-
-async function getTokenBalances(walletAddress: string) {
-    if (isEthereumAddress(walletAddress)) {
-        await getEthereumTokenBalances(walletAddress);
-    } else {
-        console.log('Solana part is ignored as per the instructions.');
-    }
-}
 
 export const addWallet = async (walletAddress: string, chain: string, isPresale: boolean) => {
     return Whitelist.findOneAndUpdate(
@@ -426,14 +298,11 @@ interface WalletTokenHolding {
     tokenName?: string;
 }
 
-// Helper function to validate Solana address
 function isValidSolanaAddress(address: string): boolean {
     try {
-        // Check if the string matches Solana address pattern (base58, 32-44 chars)
         if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
             return false;
         }
-        // Try to create a PublicKey (this will validate the address)
         new PublicKey(address);
         return true;
     } catch {
@@ -441,7 +310,15 @@ function isValidSolanaAddress(address: string): boolean {
     }
 }
 
-export async function getTokenHoldersByMint(tokenMintAddress: string, walletAddresses: string[]): Promise<WalletTokenHolding[]> {
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Define a type guard function
+function isWalletTokenHolding(result: WalletTokenHolding | null): result is WalletTokenHolding {
+    return result !== null;
+}
+
+async function getTokenHoldersByMint(tokenMintAddress: string, walletAddresses: string[]): Promise<WalletTokenHolding[]> {
     try {
         console.log(`Starting token holder check for mint: ${tokenMintAddress}`);
         console.log(`Total wallets to check: ${walletAddresses.length}`);
@@ -450,8 +327,9 @@ export async function getTokenHoldersByMint(tokenMintAddress: string, walletAddr
             throw new Error(`Invalid Solana token mint address: ${tokenMintAddress}`);
         }
 
-        const connection = await getWorkingConnection();
+        const connection = new Connection('https://staked.helius-rpc.com?api-key=e9289b2e-df2d-4292-bd37-3f792d43998a', 'confirmed');
         const holdings: WalletTokenHolding[] = [];
+        const mintPubkey = new PublicKey(tokenMintAddress);
 
         const validWallets = walletAddresses.filter(address => {
             const isValid = isValidSolanaAddress(address);
@@ -463,26 +341,31 @@ export async function getTokenHoldersByMint(tokenMintAddress: string, walletAddr
 
         console.log(`Valid wallets to process: ${validWallets.length}`);
 
-        for (const walletAddress of validWallets) {
-            try {
-                console.log(`Checking wallet: ${walletAddress}`);
-                const wallet = new PublicKey(walletAddress);
-
-                const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-                    wallet,
-                    {
-                        mint: new PublicKey(tokenMintAddress),
-                        programId: TOKEN_PROGRAM_ID,
-                    },
-                    'confirmed'
+        // Convert wallet addresses to Associated Token Account addresses
+        const tokenAccountAddresses = await Promise.all(
+            validWallets.map(async (walletAddress) => {
+                const walletPubkey = new PublicKey(walletAddress);
+                return await connection.getTokenAccountsByOwner(
+                    walletPubkey,
+                    { mint: mintPubkey }
                 );
+            })
+        );
 
-                console.log(`Found ${tokenAccounts.value.length} token accounts for wallet ${walletAddress}`);
+        // Get all token accounts in a single RPC call
+        const accountInfos = await connection.getMultipleAccountsInfo(
+            tokenAccountAddresses.flatMap(ta => ta.value.map(a => a.pubkey))
+        );
 
-                if (tokenAccounts.value.length > 0) {
-                    const account = tokenAccounts.value[0];
-                    const parsedInfo = account.account.data.parsed.info;
-                    const tokenAmount = Number(parsedInfo.tokenAmount.uiAmount);
+        // Process the results
+        validWallets.forEach((walletAddress, index) => {
+            const tokenAccounts = tokenAccountAddresses[index];
+            if (tokenAccounts.value.length > 0) {
+                const accountInfo = accountInfos[index];
+                if (accountInfo) {
+                    const data = accountInfo.data;
+                    const amount = data.readBigInt64LE(64); // Token amount is stored at offset 64
+                    const tokenAmount = Number(amount) / Math.pow(10, 9); // Assuming 9 decimals
 
                     console.log(`Wallet ${walletAddress} holds ${tokenAmount} tokens`);
 
@@ -492,23 +375,15 @@ export async function getTokenHoldersByMint(tokenMintAddress: string, walletAddr
                             tokenAmount,
                             tokenName: undefined
                         });
-                        console.log(`Added wallet ${walletAddress} to holdings with ${tokenAmount} tokens`);
                     }
-                } else {
-                    console.log(`No tokens found for wallet ${walletAddress}`);
                 }
-            } catch (error) {
-                console.error(`Error checking wallet ${walletAddress}:`, error);
+            } else {
+                console.log(`No tokens found for wallet ${walletAddress}`);
             }
-        }
+        });
 
         console.log(`Found ${holdings.length} wallets with token holdings`);
-
-        // Sort by token amount in descending order
-        const sortedHoldings = holdings.sort((a, b) => b.tokenAmount - a.tokenAmount);
-
-        console.log('Final holdings:', JSON.stringify(sortedHoldings, null, 2));
-        return sortedHoldings;
+        return holdings.sort((a, b) => b.tokenAmount - a.tokenAmount);
 
     } catch (error) {
         console.error("Error in getTokenHoldersByMint:", error);
@@ -516,17 +391,4 @@ export async function getTokenHoldersByMint(tokenMintAddress: string, walletAddr
     }
 }
 
-// Example usage
-const walletAddresses = [
-    "9JcJD8un5QMaDkwuEMzH56gtr3pkvqc3ftWPqwHHU9vR",
-    "FvyKbbNQuD6iH1ZM23gFX3D18DoHxR9CMUonNcY8v5ur",
-];
-
-const tokenMint = "oreoU2P8bN6jkk3jbaiVxYnG1dCXcYxwhwyK9jSybcp";
-
-try {
-    const holders = getTokenHoldersByMint(tokenMint, walletAddresses);
-    console.log("Token holders:", holders);
-} catch (error) {
-    console.error("Error:", error);
-} 
+export { getTokenHoldersByMint };
