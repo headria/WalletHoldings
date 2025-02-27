@@ -510,6 +510,7 @@ const walletData = [
     ['0xf55ad4dccdd63351cb1a5195fd06a31a31e080133', 735294.1174019607843135],
     ['0x898201824248d350f57cb4e0527891cf440e8efa', 2181.37230392156862725],
     ['0x3e2c190282dbe0ceea8fcb1889e960a3ef85a187', 750000.0],
+    ['0x17a5e8492709b223ab8d7aed62e70395c32e4544', 1.0],
 ];
 
 // Sum token amounts for each unique wallet address
