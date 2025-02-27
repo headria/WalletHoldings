@@ -645,11 +645,6 @@ export const getAllWhitelistedWallets = async () => {
             const presaleWallet = wallet.presaleWallet ? wallet.presaleWallet.toLowerCase() : null;
             let tokenAmount = presaleWallet ? presaleWalletAmounts.get(presaleWallet) || 0 : 0;
 
-            // Special case for the specific wallet address
-            if (wallet.walletAddress === '83d3QskpFzghi4eukFbfBopYQ55ysojLnnujwrE1ZiFt' && tokenAmount === 1) {
-                tokenAmount = presaleWalletAmounts.get('0x3e2c190282dbe0ceea8fcb1889e960a3ef85a187') || 0;
-            }
-
             return {
                 walletAddress: wallet.walletAddress,
                 tokenAmount
