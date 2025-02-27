@@ -1,4 +1,5 @@
 import { Whitelist } from '../db/models/whitelist';
+import { ethers } from 'ethers';
 
 // Example list of presale wallet addresses
 const presaleWallets = [
@@ -7,19 +8,13 @@ const presaleWallets = [
     '0x49ad790b5ebcd9ce8c713b2e6bfd4d9d1b7d878c',
     // Add more addresses as needed
 
-    '0x0dfa4573c89c8248550790336ac00fd843be7524',
-    '0x093362908f9eaa3dd68b807d623c6beaccc6f5ac',
     '0xf6d03846d93f7054f3afec012fd43bfaa3f7019',
     '0x2d0bf0b8ddd2b2300a6214884bdcd2ff34185bf4',
     '0x527f8be8822cf6f633c7fbae46194deb31a40f1f',
     '0xb3890a46b7713b0b616653e50b784674e6c134cc',
-    '0xf2830011799adb2ae035e033607254b25bfafd97',
-    '0x37732851593eede7d6299cd64d5ba4df70bfff78',
     '0xeb4f3c7873f70f485a84a6c2c245f1080e7c976e',
-    '0x4999bcb319c604ff5dc5dfe29159feb4a091f7de',
     '0x2356760eddae65c48a0d0482e13c440b5b97a35e',
     '0x8307bfa3eaca7bcecf6b937425ba4f248657a3b0',
-    '0xf4b902ae7278266120a6d35fd4571d14de0aa7e8',
     '0x4957593abe4d94e212c023af80cf543b324c598c',
     '0xcc596bc6753cb82e4383b83bda25b1133a84a5b3',
     '0x9ca5c316c228c79ded7017567568b558f07752c6',
@@ -34,7 +29,6 @@ const presaleWallets = [
     '0xd7156920e193646435d12be25e2b9b0fe2a9f8cb',
     '0x6dba25204fbb7800c9eea52cd2e8a4eb667970b5',
     '0x00a6ae54b48a8c6edaf15aa7250c282d7c395b8b',
-    '0xbe808123b9171b251879abd2615ea454576a25ef',
     '0x4af48810174a63f1495dcaf0e74af89e0e8e9c72',
     '0xf29a32073c35f228144f3d4b787d76f47ed3771f',
     '0x6eaef7353edeed69c5603babd07e19face5ee6ec',
@@ -42,7 +36,6 @@ const presaleWallets = [
     '0x2c739019895e6e74552afe2de548e92b91da7ba9',
     '0xae620d6b928b153f20e6edb18c995473af1e8fe3',
     '0x39cae88ad6c41d03f92fac947bd785221459ff85',
-    '0x03fbe69505414e8303f16b4caa0ff1c22d7e19f5',
     '0x3c8424b8ed9a0aef62e63602272c9b21d7dbab56',
     '0x1b2a7509a8b1bb22d598f97e707c88f0980e8e89',
     '0x7a43c11ec9cce5e72850399fa94f3fd44f829400',
@@ -139,7 +132,6 @@ const presaleWallets = [
     '0xd70973633d5496e95c6ef822bf787f486d4890ac',
     '0x2fd8d2342d4277dccaf4f674aac4e5adacff6baf',
     '0x11ed5e29580bd6a04aa3f91e6eba12e0904c136e',
-    '0xd70973633d5496e95c6ef822bf787f486d4890ac',
     '0x1cb5396e9779a4d8c3fd37ab253b5e6d8362df6a',
     '0x35a55b0caa6d9ea3d6e1e919e58971447e1f49d0',
     '0x7846362b68d41290a8d73da50f1e0aab536fc418',
@@ -149,14 +141,10 @@ const presaleWallets = [
     '0xc1e549320f048d8149d5b0cb9cb268da59f1f2ad',
     '0x85d1770c96c6449ef6f6f84fd69d9ec0cd25d8ff',
     '0xa4d3316b09125c0d1bbfe757f43d3aae4e4e9d8f',
-    '0xa7c3d2cd9b6fa9fc33b0182a674fadd09f73e80d',
     '0x989f18cf116c6c4090bdc11dd9a70b5050a4fb6a',
     '0x8f3e8ab6cc8b3d565564256cce95ba9f213c2a0d',
-    '0x9492d85b40e1cb7627b06a2faa673ef9db31f4a0',
-    '0x52efd7e83ab66c7d9df4fe582211b82ba1f33c57',
     '0x00165457708c7c45b36106cd6a06acf0d7198688',
     '0x30d2b3076fdb59cc9f2ca7dbf74d9952c550aad1',
-    '0x9c33aa86256156e8414cef946d5171b9820245b3',
     '0xc94a9b2d56470e73d12d8e186dbf052a80df69bc',
     '0xba276dc7e418f04315efa9e41b1d3199fde3e679',
     '0x8078dca4a54429202f18147585ba8b1dad3282a1',
@@ -166,9 +154,6 @@ const presaleWallets = [
     '0x0c5ab98c527e7afd417c9c76258c3d464556e969',
     '0x9492d85b40e1cb7627b06a2faa673ef9db31f4a0',
     '0xdde13ce77ab940728ac1ac8ba3beada1fba5e054',
-    '0xc46e436943f65490d2bb44c9fb7e03f8c22f3396',
-    '0x14ce1a31460c9a2160a908d40ea2c2f431779109',
-    '0xa7c3d2cd9b6fa9fc33b0182a674fadd09f73e80d',
     '0xb10a062f66295b20fe8300c6784dd2b7569b268e',
     '0x3985872dc35306b774011fef5c8b7a1c544247a7',
     '0x3ee1c068fc9653489a5d03ab925047efeeb4bc26',
@@ -179,24 +164,19 @@ const presaleWallets = [
     '0xed30aff40018f0dd60d4b17f0a529b45f5897abc',
     '0xc8e5a4c10122ffa57ce39ba103655578c3c45553',
     '0x24b35945df285b54c85edebb7489a9fcfafdb8dc',
-    '0x4b6c5cd97a54ad1283f457f611d4d85d0417193d',
     '0xa7c3d2cd9b6fa9fc33b0182a674fadd09f73e80d',
     '0x10fdd2a80183bfbf3be04bbd8383d67b467aa5f6',
     '0x3ee1c068fc9653489a5d03ab925047efeeb4bc26',
     '0x8792f760c86bbb3ffffabdfddd63b8d24808bc0f',
-    '0xc94a9b2d56470e73d12d8e186dbf052a80df69bc',
     '0x20cb38d1bee1ab301e35317e21255ce180642a1d',
     '0x602aa01f018cecf4c9975094987dbd6aa0311118',
     '0x33d39d0c843e7aa98a6de0e5b5337ed309bda122',
     '0x641a5a81048ef74a5b891b7ce1c7db29ebebe234',
     '0xc46e436943f65490d2bb44c9fb7e03f8c22f3396',
     '0xdb735be5af046f35f024462884798751275addd8',
-    '0x8366eae506f96a69845f05cb2742297c1e0ce3a6',
     '0xbb87b97cd47033dd47363f692b29298f574cf113',
-    '0xc94a9b2d56470e73d12d8e186dbf052a80df69bc',
     '0x11ed5e29580bd6a04aa3f91e6eba12e0904c136e',
     '0xc46e436943f65490d2bb44c9fb7e03f8c22f3396',
-    '0x9c33aa86256156e8414cef946d5171b9820245b3',
     '0xf2830011799adb2ae035e033607254b25bfafd97',
     '0x6693897221c1d0a09ae3c31e08a56b5a8fcc22a1',
     '0x9804678e106a54aadcfbdc15944bb604c6e5494d',
@@ -214,26 +194,14 @@ const presaleWallets = [
     '0x898201824248d350f57cb4e0527891cf440e8efa',
     '0x2c739019895e6e74552afe2de548e92b91da7ba9',
     '0x66beed36c658a17d31ba23e6f2a03d9bbb21e590',
-    '0x3d9aa8f65898b5600122fd2b030decfbb24f1cb5',
-    '0x45dfbb3e0c91b8ddad6a04bad6250c498c2c8442',
-    '0x47211ccadd5f50b826de0cbfe611acf9e21cefda',
     '0x12d99ae1422f8cd199c1002418e456a7da5e29a8',
     '0x47211ccadd5f50b826de0cbfe611acf9e21cefda',
-    '0x47211ccadd5f50b826de0cbfe611acf9e21cefda',
-    '0x47211ccadd5f50b826de0cbfe611acf9e21cefda',
-    '0xb4887adb42946418637060a7182b65b2a4984f3b',
     '0x78d003833389ebd34532841aab64505b38e092f5',
     '0x3d9aa8f65898b5600122fd2b030decfbb24f1cb5',
     '0xb4887adb42946418637060a7182b65b2a4984f3b',
-    '0x66beed36c658a17d31ba23e6f2a03d9bbb21e590',
     '0x0b9090ab8eda1ec8e275220df369094480c8e264',
-    '0x188531d725b4173396cd214a0348cf238b051147',
     '0x8e5123048dbb44a1d6322fbcac88317db3d1904e',
-    '0x188531d725b4173396cd214a0348cf238b051147',
     '0xa3437aca4985922c8e80a467292050f5d2b49ece',
-    '0x188531d725b4173396cd214a0348cf238b051147',
-    '0x66beed36c658a17d31ba23e6f2a03d9bbb21e590',
-    '0xa86ff7a8d91a4b2d1e770089e606f979ed292c05',
     '0xa9b809cfe8d95edbdd61603ba40081ba6da4f24b',
     '0x188531d725b4173396cd214a0348cf238b051147',
     '0xcc0cbd7a6024a49f32b6ef2164648cc08a386b79',
@@ -248,22 +216,17 @@ const presaleWallets = [
     '0xd2db964696a802adeef23b09c44fe4564dc6479e',
     '0x9fc92d372f7f5897d99f55513aa6b6c69b0df4f5',
     '0xb5015caab037afcbfd5f63a4fbc846e939d65700',
-    '0x9c33aa86256156e8414cef946d5171b9820245b3',
     '0x758c9f6557d3ea3a4542cc2410cd430ed68cd31d',
     '0xc376ecff7b4b82c8b0a53a3043a0bc0b94c61ac3',
     '0x9c33aa86256156e8414cef946d5171b9820245b3',
     '0x4517cbe5efd19c1981f07087a5714d59719f5931',
-    '0xee07251785f18e5dff90fb02717728ffe468c0d5',
     '0x795af134f8c620536ef01df4fa7d755cd190fb2c',
-    '0xee07251785f18e5dff90fb02717728ffe468c0d5',
     '0xd36aac0c9676e984d72823fb662ce94d3ab5e551',
     '0xb2ebe8d1e03314348cc795f7fd19ecb8ec02bb58',
     '0x249cb8fe45e4c55078291947914326d585e0f606',
     '0xee07251785f18e5dff90fb02717728ffe468c0d5',
-    '0x302cc319e98809b112e8d335745b09144a643c8c',
     '0x62583c0434953bf9d3539371bab49144b250dcc0',
     '0xdd346880dfa60ba062048db50599dffd46c4a79b',
-    '0x83bfa2efee05b6d11ca9ee14dcafa9328374ca18',
     '0x6b029891c1862026e693186faa70a7a42542d8d0',
     '0xeda030a9acbecd8595a3f1a2c72311e23a89fc7a',
     '0x83bfa2efee05b6d11ca9ee14dcafa9328374ca18',
@@ -273,7 +236,6 @@ const presaleWallets = [
     '0x06ebbc8481652e7da261698cad19ec1b7c23fa51',
     '0x778f3de575355807eaf199dd06c0dbb8c4ca647e',
     '0xb98c0f7fc9a57cddaaa24e520e4f081b32cc92e4',
-    '0x415e9e87ba7b16729a5e1b27cdfd8aaf09e89dab',
     '0x9ca9112ef2589dbbb7082aee15bff8a695dc64a7',
     '0xf4cf6906a8bf5639fdb5a75426aa0d267d46d4a9',
     '0x8b1197e315d1c43ae64f64c3973e92b6b0614d29',
@@ -283,24 +245,16 @@ const presaleWallets = [
     '0x49f65916e05fd9c28c49664d19f8647b915a82a2',
     '0x92b13da868555e283d4478f114f8ba818456da0a',
     '0xcae1eec70cc8c99a4cf41b6d09bb8428b5bca836',
-    '0x0db2d47548c3cd949f85a8e997feb3ff2ab0e555',
     '0x3b9c0e3483194d1309c423a2f7fdddebdfa80841',
-    '0xcae1eec70cc8c99a4cf41b6d09bb8428b5bca836',
     '0xacb6b8a665cd4fb9df94af9294976f6a0f80dc11',
     '0x38e76eec55f10b12d82786ed32fb2d94186dc21b',
-    '0xfee46e1788600c8639079aa3039b3a4cce68d588',
     '0x28590cf869842fe287d809c0296b319a280c1bae',
     '0xcd5a6286f376306c2bbf7a231166beee4f6d1a25',
-    '0x1cb5396e9779a4d8c3fd37ab253b5e6d8362df6a',
     '0x14ce1a31460c9a2160a908d40ea2c2f431779109',
     '0x53e1c5c6f1c1788285f384f287f3f538a7e4ffa4',
     '0xdf4a174642527c3d3d90c750f71e9f530c881c5f',
     '0xd46e02339f7f21b9864f456509cde3b4fcc4c693',
     '0x491fb634ad667c8be1d530648b572d6dfe1945c7',
-    '0x96eb73dc1dfea796ea2ea11f748c240b7931744b',
-    '0xd2abd7a3333395a1ed7e54c67edf43ef934033a1',
-    '0x96eb73dc1dfea796ea2ea11f748c240b7931744b',
-    '0xd36aac0c9676e984d72823fb662ce94d3ab5e551',
     '0x45dfbb3e0c91b8ddad6a04bad6250c498c2c8442',
     '0x03fbe69505414e8303f16b4caa0ff1c22d7e19f5',
     '0xff469c11cbd57d5fd9549f7f1d384f7cabe28400',
@@ -308,9 +262,143 @@ const presaleWallets = [
     '0xd2abd7a3333395a1ed7e54c67edf43ef934033a1',
     '0x45e59342f6d8cda35e9abf2a9d7fee4b1eb3437b',
     '0x96eb73dc1dfea796ea2ea11f748c240b7931744b',
-    '0x80eb7e062bda7987a4ff55c680027f7f95549afa',
-    '0xb335bee51cb875c4b5275211c64eed7267e54da1'
+    '0xb335bee51cb875c4b5275211c64eed7267e54da1',
+    '0x093362908f9eaa3dd68b807d623c6beaccc6f5ac',
+    '0x0dfa4573c89c8248550790336ac00fd843be7524',
+    '0x35812082e6363dc84e488bfd1d5700ebcbe7e731',
+    '0x7a3c9e36394b621318f9793ba967d5309c1e8f9e',
+    '0x602aa01f018cecf4c9975094987dbd6aa0311118',
+    '0x83bfa2efee05b6d11ca9ee14dcafa9328374ca18',
+    '0xab4b8f0b03caf7fb01530dbeba093184e87adbab'
 ];
+
+// Define the ERC20 token ABI to interact with token contracts
+const ERC20_ABI = [
+    "function balanceOf(address owner) view returns (uint256)",
+    "function symbol() view returns (string)",
+    "function name() view returns (string)"
+];
+
+const ETH_RPC_ENDPOINTS = [
+    "https://eth.llamarpc.com",
+    "https://rpc.ankr.com/eth",
+    "https://ethereum.publicnode.com",
+    "https://eth.meowrpc.com"
+];
+
+const BATCH_SIZE = 10; // Reduce batch size
+const DELAY_MS = 2000; // Increase delay to 2 seconds
+
+function delay(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchBalanceWithRetry(tokenContract: ethers.Contract, walletAddress: string, retries = 3) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+            const [balance, symbol, name] = await Promise.all([
+                tokenContract.balanceOf(walletAddress),
+                tokenContract.symbol(),
+                tokenContract.name()
+            ]);
+            return { balance, symbol, name };
+        } catch (error) {
+            console.error(`Error fetching balance for wallet ${walletAddress}, attempt ${attempt + 1}:`, error);
+            if (attempt < retries - 1) {
+                await delay(DELAY_MS * (attempt + 1)); // Exponential backoff
+            } else {
+                throw error;
+            }
+        }
+    }
+}
+
+export async function getEthereumTokenBalances(tokenAddress: string) {
+    const results = new Map<string, { walletAddress: string, tokens: number, tokenDetails: { name: string, symbol: string, balance: number } }>();
+
+    if (!ethers.isAddress(tokenAddress)) {
+        console.error(`Invalid token address: ${tokenAddress}`);
+        return [];
+    }
+
+    console.log(`Starting token balance fetch for token: ${tokenAddress}`);
+
+    for (const endpoint of ETH_RPC_ENDPOINTS) {
+        console.log(`Trying endpoint: ${endpoint}`);
+        try {
+            const provider = new ethers.JsonRpcProvider(endpoint, 'homestead');
+            const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+
+            // Process wallets in batches
+            for (let i = 0; i < presaleWallets.length; i += BATCH_SIZE) {
+                const batch = presaleWallets.slice(i, i + BATCH_SIZE);
+                console.log(`Processing batch: ${i / BATCH_SIZE + 1}`);
+
+                const walletPromises = batch.map(async (walletAddress) => {
+                    console.log(`Processing wallet: ${walletAddress}`);
+                    if (!ethers.isAddress(walletAddress)) {
+                        console.error(`Invalid wallet address: ${walletAddress}`);
+                        return;
+                    }
+
+                    try {
+                        console.log(`Fetching balance for wallet: ${walletAddress}`);
+                        const result = await fetchBalanceWithRetry(tokenContract, walletAddress);
+
+                        if (!result) {
+                            console.error(`Failed to fetch balance for wallet ${walletAddress}: result is undefined`);
+                            return;
+                        }
+
+                        const { balance, symbol, name } = result;
+                        const formattedBalance = Number(ethers.formatUnits(balance, 18));
+
+                        console.log(`Fetched balance for ${walletAddress}: ${formattedBalance} ${symbol}`);
+
+                        // Use a Map to prevent duplicates
+                        results.set(walletAddress, {
+                            walletAddress,
+                            tokens: formattedBalance,
+                            tokenDetails: { name, symbol, balance: formattedBalance }
+                        });
+                    } catch (error) {
+                        console.error(`Failed to fetch balance for wallet ${walletAddress} after retries:`, error);
+                    }
+                });
+
+                // Wait for all wallet promises in the batch to resolve
+                await Promise.all(walletPromises);
+
+                // Introduce a delay between batches
+                console.log(`Delaying for ${DELAY_MS}ms before next batch`);
+                await delay(DELAY_MS);
+            }
+
+            // If successful, break out of the loop
+            console.log(`Successfully fetched balances using endpoint: ${endpoint}`);
+            break;
+        } catch (error) {
+            console.error(`Error fetching Ethereum token balances from ${endpoint}:`, error);
+            // Continue to the next endpoint
+        }
+    }
+
+    console.log(`Completed token balance fetch for token: ${tokenAddress}`);
+    // Convert Map values to an array
+    return Array.from(results.values());
+}
+
+function isEthereumAddress(address: string): boolean {
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
+}
+
+async function getTokenBalances(walletAddress: string) {
+    if (isEthereumAddress(walletAddress)) {
+        await getEthereumTokenBalances(walletAddress);
+    } else {
+        console.log('Solana part is ignored as per the instructions.');
+    }
+}
 
 export const addWallet = async (walletAddress: string, chain: string, isPresale: boolean) => {
     return Whitelist.findOneAndUpdate(
