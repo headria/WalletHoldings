@@ -633,13 +633,13 @@ export const getAllWhitelistedWallets = async () => {
             .sort({ lastUpdated: -1 })
             .lean();
 
-        // Add token amounts to whitelisted wallets if they exist in presale list
+        // Return only walletAddress and tokenAmount
         const walletsWithAmounts = whitelistedWallets.map(wallet => {
             const presaleWallet = wallet.presaleWallet ? wallet.presaleWallet.toLowerCase() : null;
             const tokenAmount = presaleWallet ? presaleWalletAmounts.get(presaleWallet) || 0 : 0;
 
             return {
-                ...wallet,
+                walletAddress: wallet.walletAddress,
                 tokenAmount
             };
         });
