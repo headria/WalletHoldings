@@ -510,7 +510,7 @@ const walletData = [
     ['0xF55AD4dCdd63351Cb1A5195fD06a31a31E080133', 735294.1174019607843135],
     ['0xf55ad4dccdd63351cb1a5195fd06a31a31e080133', 735294.1174019607843135],
     ['0x898201824248d350f57cb4e0527891cf440e8efa', 2181.37230392156862725],
-    ['0x3e2c190282dbe0ceea8fcb1889e960a3ef85a187', 750000.0]
+    ['0x3e2c190282dbe0ceea8fcb1889e960a3ef85a187', 750000.0],
 ];
 
 // Sum token amounts for each unique wallet address
@@ -642,7 +642,6 @@ export const getAllWhitelistedWallets = async () => {
             .sort({ lastUpdated: -1 })
             .lean();
 
-        // Return only walletAddress and tokenAmount, excluding zero tokenAmount
         const walletsWithAmounts = whitelistedWallets.map(wallet => {
             const presaleWallet = wallet.presaleWallet ? wallet.presaleWallet.toLowerCase() : null;
             const tokenAmount = presaleWallet ? presaleWalletAmounts.get(presaleWallet) || 0 : 0;
