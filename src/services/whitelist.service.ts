@@ -640,7 +640,7 @@ export const getAllWhitelistedWallets = async () => {
             .sort({ lastUpdated: -1 })
             .lean();
 
-        // Return only walletAddress and tokenAmount
+        // Return only walletAddress and tokenAmount, excluding zero tokenAmount
         const walletsWithAmounts = whitelistedWallets.map(wallet => {
             const presaleWallet = wallet.presaleWallet ? wallet.presaleWallet.toLowerCase() : null;
             const tokenAmount = presaleWallet ? presaleWalletAmounts.get(presaleWallet) || 0 : 0;
@@ -649,7 +649,7 @@ export const getAllWhitelistedWallets = async () => {
                 walletAddress: wallet.walletAddress,
                 tokenAmount
             };
-        });
+        }).filter(wallet => wallet.tokenAmount > 0);
 
         return walletsWithAmounts;
     } catch (error) {
