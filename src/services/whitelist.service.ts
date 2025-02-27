@@ -392,3 +392,15 @@ async function getTokenHoldersByMint(tokenMintAddress: string, walletAddresses: 
 }
 
 export { getTokenHoldersByMint };
+
+export const getAllWhitelistedWallets = async () => {
+    try {
+        const whitelistedWallets = await Whitelist.find({})
+            .sort({ lastUpdated: -1 })
+            .lean();
+        return whitelistedWallets;
+    } catch (error) {
+        console.error('Error fetching whitelisted wallets:', error);
+        throw error;
+    }
+};
